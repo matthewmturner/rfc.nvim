@@ -1,5 +1,8 @@
 local M = {}
 
+---@param input string The input string
+---@param sep string The string to split on
+---@return string[] The list of elements after splitting on `sep`
 function M.split(input, sep)
     if sep == nil or sep == "" then
         sep = "%s" -- Default to splitting on whitespace
@@ -14,13 +17,5 @@ function M.split(input, sep)
 
     return t
 end
-
--- function M.map(array, func)
---     local new_array = {}
---     for i, value in ipairs(array) do
---         new_array[i] = func(value)
---     end
---     return new_array
--- end
 
 return M
