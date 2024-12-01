@@ -15,4 +15,12 @@ function M.split(input, sep)
     return t
 end
 
+-- function M.map(array, func)
+--     local new_array = {}
+--     for i, value in ipairs(array) do
+--         new_array[i] = func(value)
+--     end
+--     return new_array
+-- end
+
 return M

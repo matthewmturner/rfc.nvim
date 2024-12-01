@@ -1,7 +1,7 @@
 local plenary = require('plenary')
-local util = require("rfsee.util")
 local log = require("rfsee.log")
 local parse = require("rfsee.parse")
+local tf_idf = require("rfsee.tf_idf")
 
 local M = {}
 
@@ -31,12 +31,15 @@ end
 function M.refresh()
     local rfc_index_body = get_raw_index()
     if type(rfc_index_body) == "string" then
-        local rfcs = parse.parse_rfcs(rfc_index_body)
-        if rfcs then
-            for _, entry in ipairs(rfcs) do
-                local rfc = parse.parse_rfc(entry)
+        local raw_rfcs = parse.parse_rfcs(rfc_index_body)
+        local rfcs = {}
+        if raw_rfcs then
+            for i, entry in ipairs(raw_rfcs) do
+                rfcs[i] = parse.parse_rfc(entry)
             end
         end
+
+        local index = tf_idf.build_index(rfcs)
     end
 end
 

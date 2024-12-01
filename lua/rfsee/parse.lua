@@ -1,21 +1,51 @@
 local util = require("rfsee.util")
 
----@alias RFC { number: number, status: string }
+---@alias RFC { number: number, title: string, status: string, formats: string[] }
 ---@alias RFCStatus 'UNKNOWN' | 'INFORMATIONAL' | 'EXPERIMENTAL' | 'HISTORIC' | 'DRAFT STANDARD' | 'PROPOSED STANDARD' | 'INTERNET STANDARD'
 
 STATUS_MATCHER = "Status:"
+FORMATS_MATCHER = "Format:"
 
 ---@param content string RFC string contents
 ---@return RFCStatus|nil The RFCs status
 local function parse_rfc_status(content)
-    print("Content: ", content)
-    local found_status = string.find(content, STATUS_MATCHER)
+    local content_without_newlines = string.gsub(content, "\n", "")
+    local found_status = string.find(content_without_newlines, STATUS_MATCHER)
     if found_status then
-        local splitted = util.split(content, STATUS_MATCHER)
+        local splitted = util.split(content_without_newlines, STATUS_MATCHER)
         local status = splitted[2]
         return status
     end
 end
+
+---@param content string RFC string contents
+---@return string[]|nil The RFCs formats
+local function parse_rfc_formats(content)
+    local content_without_newlines = string.gsub(content, "\n", "")
+    local found_status = string.find(content_without_newlines, FORMATS_MATCHER)
+    if found_status then
+        local splitted = util.split(content_without_newlines, FORMATS_MATCHER)
+        local formats_string = splitted[2]
+        local splitted_formats = util.split(formats_string, ",")
+        local cleaned_formats = {}
+        for i, f in ipairs(splitted_formats) do
+            cleaned_formats[i] = string.gsub(f, ' ', '')
+        end
+        return cleaned_formats
+    end
+end
+
+---@param formats string[] RFC string contents
+---@return boolean The RFCs status
+local function has_txt_format(formats)
+    for _, f in ipairs(formats) do
+        if f == "TXT" then
+            return true
+        end
+    end
+    return false
+end
+
 
 local M = {}
 
@@ -40,21 +70,28 @@ function M.parse_rfc(entry)
         return
     end
     local rfc = {}
-    rfc.number = string.sub(entry, 0, after_rfc_num)
+    local title_end = string.find(entry, "%(")
+    local title = string.sub(string.sub(entry, 0, title_end), 0, -3)
     local content = string.sub(entry, after_rfc_num)
+    local rfc_number = string.sub(string.sub(entry, 0, after_rfc_num), 0, -2)
+    status = nil
+    formats = nil
     for matched in string.gmatch(content, "%((.-)%)") do
+        rfc.title = title
+        rfc.number = tonumber(rfc_number)
         local status = parse_rfc_status(matched)
-        print("Status: ", status)
-        if type(status) == "string" then
-            print("Status: ", status)
+        if status ~= nil then
+            rfc.status = status
         end
-        -- if not status == nil then
-        --     print("Status: ", status)
-        -- end
-        -- local has_text = parse_rfc_has_txt(matched)
-        -- print(matched)
+        local formats = parse_rfc_formats(matched)
+        if formats ~= nil then
+            rfc.formats = formats
+        end
     end
-    return rfc
+    if type(rfc.title) == "string" and type(rfc.number) == "number" and type(rfc.status) == "string" and rfc.formats ~= nil and has_txt_format(rfc.formats) then
+        return rfc
+    end
+    return nil
 end
 
 return M
