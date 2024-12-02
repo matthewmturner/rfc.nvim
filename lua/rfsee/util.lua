@@ -18,4 +18,20 @@ function M.split(input, sep)
     return t
 end
 
+---@param s string The input string
+---@param pattern string|number The match pattern
+function M.enumerate_gmatch(s, pattern)
+    local counter = 0
+    local iterator = string.gmatch(s, pattern)
+    return function()
+        counter = counter + 1
+        local match = iterator()
+        if match then
+            return counter, match
+        else
+            return nil
+        end
+    end
+end
+
 return M
