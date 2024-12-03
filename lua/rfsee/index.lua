@@ -2,6 +2,7 @@ local plenary = require('plenary')
 local log = require("rfsee.log")
 local parse = require("rfsee.parse")
 local tf_idf = require("rfsee.tf_idf")
+local r = require("rfsee.rust")
 
 local M = {}
 
@@ -29,6 +30,8 @@ end
 
 
 function M.refresh()
+    local i = r.hello_world()
+    print("From Rust: ", i)
     local rfc_index_body = get_raw_index()
     if type(rfc_index_body) == "string" then
         local raw_rfcs = parse.parse_rfcs(rfc_index_body)
