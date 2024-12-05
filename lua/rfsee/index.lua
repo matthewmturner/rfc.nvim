@@ -30,8 +30,8 @@ end
 
 
 function M.refresh()
-    local i = r.hello_world()
-    print("From Rust: ", i)
+    local save_result = r.save_input_number_as_json_to_custom_path(7, "my_path.json")
+    print("Save result error: ", save_result.error)
     local rfc_index_body = get_raw_index()
     if type(rfc_index_body) == "string" then
         local raw_rfcs = parse.parse_rfcs(rfc_index_body)
