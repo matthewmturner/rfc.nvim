@@ -22,7 +22,7 @@ pub fn save_input_number_as_json_to_custom_path(val: i32, path: &str) -> std::io
     Ok(())
 }
 
-pub fn index_to_json() {}
+pub fn save_index_as_json_to_custom_path() {}
 
 #[cfg(test)]
 mod tests {
