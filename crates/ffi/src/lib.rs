@@ -11,7 +11,9 @@ pub struct SaveResult {
     error: bool,
 }
 
-// Exposed via an opaque pointer via FFI
+// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
+// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
+// not meet them - so we use `String`.
 type TermFrequencies = HashMap<String, f64>;
 type TfIdf = HashMap<String, TermFrequencies>;
 type Url = String;
