@@ -11,17 +11,81 @@ pub struct SaveResult {
     error: bool,
 }
 
-#[repr(C)]
-pub struct TermFrequencies {
-    inner: HashMap<String, f64>,
-}
+// Exposed via an opaque pointer via FFI
+type TermFrequencies = HashMap<CString, f64>;
 
 #[no_mangle]
-pub extern "C" fn create_term_frequencies() -> *mut TermFrequencies {
-    let map: HashMap<String, f64> = HashMap::new();
-    let term_freqs = TermFrequencies { inner: map };
-    let boxed = Box::new(term_freqs);
+pub extern "C" fn create_term_freqs() -> *mut TermFrequencies {
+    let map: HashMap<CString, f64> = HashMap::new();
+    let boxed = Box::new(map);
     Box::into_raw(boxed)
+}
+
+/// ChatGPT created the safety docs
+/// Inserts a key-value pair into the `TermFrequencies` map.
+///
+/// # Safety
+/// - `term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by Rust.
+/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably elsewhere during this call.
+/// - `key` must be a valid, non-null pointer to a null-terminated C string. The string must remain valid
+///   for the duration of this function call.
+/// - The function will return immediately if `term_freqs` or `key` is null.
+/// - Undefined behavior may occur if the requirements above are not met.
+#[no_mangle]
+pub unsafe extern "C" fn insert_term_freqs(
+    term_freqs: *mut TermFrequencies,
+    key: *const c_char,
+    value: f64,
+) {
+    if term_freqs.is_null() || key.is_null() {
+        return;
+    }
+    let term_freqs = unsafe { &mut *term_freqs };
+    let key = unsafe { CStr::from_ptr(key) };
+    match key.to_str() {
+        Ok(_) => {
+            term_freqs.insert(key.to_owned(), value);
+        }
+        Err(_) => {
+            eprintln!("ERROR: Unable to convert key to UTF-8")
+        }
+    }
+}
+
+/// ChatGPT created the safety docs
+/// Retrieves a value from the `TermFrequencies` map by key.
+///
+/// # Safety
+/// - `term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by Rust.
+/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably elsewhere during this call.
+/// - `key` must be a valid, non-null pointer to a null-terminated C string. The string must remain valid
+///   for the duration of this function call.
+/// - The function will return a null pointer if:
+///   - `term_freqs` or `key` is null.
+///   - The key does not exist in the map.
+/// - The returned pointer is valid only as long as `term_freqs` remains valid and is not modified.
+/// - Undefined behavior may occur if the requirements above are not met.
+#[no_mangle]
+pub unsafe extern "C" fn get_term_freqs(
+    term_freqs: *const TermFrequencies,
+    key: *const c_char,
+) -> *const f64 {
+    if term_freqs.is_null() || key.is_null() {
+        // TODO: Maybe return an int that represents error types instead?
+        return std::ptr::null();
+    }
+
+    let term_freqs = unsafe { &*term_freqs };
+    let key = unsafe { CStr::from_ptr(key) };
+
+    // Make sure the key is UTF-8
+    match key.to_str() {
+        Ok(_) => match term_freqs.get(key) {
+            Some(v) => v,
+            None => std::ptr::null(),
+        },
+        Err(_) => std::ptr::null(),
+    }
 }
 
 #[no_mangle]
@@ -75,8 +139,6 @@ pub unsafe extern "C" fn save_input_number_as_json_to_custom_path(
         Err(_) => SaveResult { error: true },
     }
 }
-
-pub unsafe extern "C" fn print_table() {}
 
 #[cfg(test)]
 mod tests {

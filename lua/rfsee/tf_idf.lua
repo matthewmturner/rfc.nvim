@@ -1,6 +1,7 @@
 local plenary = require('plenary')
 local parse = require("rfsee.parse")
 local util = require("rfsee.util")
+local r = require("rfsee.rust")
 
 -- rfsee.parse.lua
 
@@ -23,6 +24,7 @@ local function extract_term_frequencies(rfc_text)
     end
 
     local frequencies = {}
+    local tf = r.create_term_freqs()
     for t, c in pairs(token_counts) do
         frequencies[t] = c / terms
     end
