@@ -12,11 +12,54 @@ pub struct SaveResult {
 }
 
 // Exposed via an opaque pointer via FFI
-type TermFrequencies = HashMap<CString, f64>;
+type TermFrequencies = HashMap<String, f64>;
+type TfIdf = HashMap<String, TermFrequencies>;
+type Url = String;
+
+#[no_mangle]
+pub extern "C" fn create_tf_idf() -> *mut TfIdf {
+    let map: HashMap<Url, TermFrequencies> = HashMap::new();
+    let boxed = Box::new(map);
+    Box::into_raw(boxed)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn insert_tf_idf(
+    tf_idf: *mut TfIdf,
+    key: *const c_char,
+    term_freqs: *mut TermFrequencies,
+) {
+    if term_freqs.is_null() || key.is_null() {
+        return;
+    }
+    let tf_idf = unsafe { &mut *tf_idf };
+    let key = unsafe { CStr::from_ptr(key) };
+    match key.to_str() {
+        Ok(k) => {
+            let term_freqs = Box::from_raw(term_freqs);
+            tf_idf.insert(k.to_owned(), *term_freqs);
+        }
+        Err(_) => {
+            eprintln!("ERROR: Unable to convert key to UTF-8")
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn save_tf_idf(tf_idf: *mut TfIdf, path: *const c_char) {
+    let tf_idf = unsafe { Box::from_raw(tf_idf) };
+    let path = unsafe { CStr::from_ptr(path) };
+    match path.to_str() {
+        Ok(p) => {
+            api::save_tf_idf(tf_idf, p);
+        }
+        Err(_) => {}
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn create_term_freqs() -> *mut TermFrequencies {
-    let map: HashMap<CString, f64> = HashMap::new();
+    let map: HashMap<String, f64> = HashMap::new();
     let boxed = Box::new(map);
     Box::into_raw(boxed)
 }
@@ -43,8 +86,8 @@ pub unsafe extern "C" fn insert_term_freqs(
     let term_freqs = unsafe { &mut *term_freqs };
     let key = unsafe { CStr::from_ptr(key) };
     match key.to_str() {
-        Ok(_) => {
-            term_freqs.insert(key.to_owned(), value);
+        Ok(k) => {
+            term_freqs.insert(k.to_owned(), value);
         }
         Err(_) => {
             eprintln!("ERROR: Unable to convert key to UTF-8")
@@ -80,7 +123,7 @@ pub unsafe extern "C" fn get_term_freqs(
 
     // Make sure the key is UTF-8
     match key.to_str() {
-        Ok(_) => match term_freqs.get(key) {
+        Ok(k) => match term_freqs.get(k) {
             Some(v) => v,
             None => std::ptr::null(),
         },
@@ -88,9 +131,18 @@ pub unsafe extern "C" fn get_term_freqs(
     }
 }
 
+/// Frees the term frequencies from memory
+///
+/// # Safety
+/// -`term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by
+/// Rust.
+/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably
+///     elsewhere during this call
 #[no_mangle]
-pub extern "C" fn hello_world() -> i32 {
-    42
+pub unsafe extern "C" fn free_term_freqs(term_freqs: *mut TermFrequencies) {
+    if !term_freqs.is_null() {
+        drop(Box::from_raw(term_freqs));
+    }
 }
 
 #[no_mangle]

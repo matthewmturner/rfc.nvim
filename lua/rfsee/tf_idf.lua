@@ -9,7 +9,7 @@ local r = require("rfsee.rust")
 
 -- https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Term-frequency
 ---@param rfc_text string The raw text content of the RFC
----@return table<string, float> frequences The term frequencies of input text
+---@return table<string, float>, unknown frequences The term frequencies of input text
 local function extract_term_frequencies(rfc_text)
     local token_counts = {}
     local terms = 0
@@ -26,10 +26,11 @@ local function extract_term_frequencies(rfc_text)
     local frequencies = {}
     local tf = r.create_term_freqs()
     for t, c in pairs(token_counts) do
+        r.insert_term_freqs(tf, t, c / terms)
         frequencies[t] = c / terms
     end
 
-    return frequencies
+    return frequencies, tf
 end
 
 local M = {}
@@ -41,6 +42,7 @@ RFC_URL_SUFFIX = ".txt"
 ---@return TfIdfIndex index Built index from parsed RFCs
 function M.build_index(rfcs)
     local index = {}
+    local ffi_index = r.create_tf_idf()
     for _, rfc in ipairs(rfcs) do
         local url = string.format("%s%s%s", RFC_URL_BASE, rfc.number, RFC_URL_SUFFIX)
         local params = {
@@ -48,15 +50,17 @@ function M.build_index(rfcs)
         }
         local rfc_res = plenary.curl.get(params)
         if rfc_res.status == 200 then
-            local term_frequencies = extract_term_frequencies(rfc_res.body)
+            local term_frequencies, ffi_tf = extract_term_frequencies(rfc_res.body)
             index[url] = term_frequencies
-            for t, f in pairs(term_frequencies) do
-                print(t, f)
-            end
+            r.insert_tf_idf(ffi_index, url, ffi_tf)
+            -- for t, f in pairs(term_frequencies) do
+            --     print(t, f)
+            -- end
         else
             print(rfc_res.status)
         end
     end
+    r.save_tf_idf(ffi_index, "./index.json")
     return index
 end
 

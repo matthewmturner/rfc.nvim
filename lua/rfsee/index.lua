@@ -32,7 +32,7 @@ end
 function M.refresh()
     local save_result = r.save_input_number_as_json_to_custom_path(7, "/tmp/my_path.json")
     print("Save result error: ", save_result.error)
-    print("Cache dir", vim.fn.stdpath("cache"))
+    -- print("Cache dir", vim.fn.stdpath("cache"))
     local rfc_index_body = get_raw_index()
     if type(rfc_index_body) == "string" then
         local raw_rfcs = parse.parse_rfcs(rfc_index_body)
