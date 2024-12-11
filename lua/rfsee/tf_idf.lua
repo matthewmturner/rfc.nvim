@@ -1,39 +1,12 @@
 local plenary = require('plenary')
-local parse = require("rfsee.parse")
-local util = require("rfsee.util")
-local r = require("rfsee.rust")
+local window = require("rfsee.window")
+local lib = require("rfsee.ffi")
 
 -- rfsee.parse.lua
 
 ---@alias TermFreqs {}
 ---@alias TfIdfIndex {}
 
-local function create_progress_window()
-    local buf = vim.api.nvim_create_buf(false, true)
-    local width = 20
-    local height = 1
-    local row = 0
-    local col = vim.o.columns - (width + 1) -- Place it at the top right
-    local win = vim.api.nvim_open_win(buf, false, {
-        relative = "editor",
-        width = width,
-        height = height,
-        row = row,
-        col = col,
-        style = "minimal",
-        border = "rounded",
-    })
-    return buf, win
-end
-
-local function update_progress_window(buf, message)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { message })
-end
-
-local function close_progress_window(win)
-    vim.api.nvim_win_close(win, true)
-    vim.cmd("redraw")
-end
 
 -- https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Term-frequency
 ---@param rfc_text string The raw text content of the RFC
@@ -52,9 +25,9 @@ local function extract_term_frequencies(rfc_text)
         terms = terms + 1
     end
 
-    local tf = r.tf_create()
+    local tf = lib.tf_create()
     for t, c in pairs(token_counts) do
-        r.tf_insert_term(tf, t, c / terms)
+        lib.tf_insert_term(tf, t, c / terms)
     end
 
     return tf
@@ -68,8 +41,8 @@ RFC_URL_SUFFIX = ".txt"
 ---@param rfcs RFC[] Parsed RFCs
 ---@return TfIdfIndex index Built index from parsed RFCs
 function M.build_index(rfcs)
-    local index = r.tf_idf_create()
-    local buf, win = create_progress_window()
+    local index = lib.tf_idf_create()
+    local buf, win = window.create_progress_window()
     for i, rfc in pairs(rfcs) do
         local url = string.format("%s%s%s", RFC_URL_BASE, rfc.number, RFC_URL_SUFFIX)
         local params = {
@@ -77,24 +50,24 @@ function M.build_index(rfcs)
         }
         if i % 100 == 0 then
             local msg = string.format("Processed RFC %s", i)
-            update_progress_window(buf, msg)
+            window.update_progress_window(buf, msg)
             vim.cmd("redraw")
         end
         local rfc_res = plenary.curl.get(params)
         if rfc_res.status == 200 then
             local tf = extract_term_frequencies(rfc_res.body)
-            r.tf_idf_insert_doc_tfs(index, url, tf)
+            lib.tf_idf_insert_doc_tfs(index, url, tf)
         else
             print(rfc_res.status)
         end
     end
 
-    update_progress_window(buf, "Finishing index")
-    r.tf_idf_finish(index)
+    window.update_progress_window(buf, "Finishing index")
+    lib.tf_idf_finish(index)
 
-    update_progress_window(buf, "Saving index")
-    r.tf_idf_save(index, "./index.json")
-    close_progress_window(win)
+    window.update_progress_window(buf, "Saving index")
+    lib.tf_idf_save(index, "./index.json")
+    window.close_progress_window(win)
     return index
 end
 
