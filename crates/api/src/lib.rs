@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, collections::HashMap, collections::HashSet, io::Write};
+use std::collections::HashMap;
 
-// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
-// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
-// not meet them - so we use `String`.
+/// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
+/// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
+/// not meet them - so we use `String`.
 
 /// A term in a document
 pub type Term = String;
@@ -14,7 +14,9 @@ pub type DocTermFreqs = HashMap<Url, TermFreqs>;
 pub type InvDocFreqs = HashMap<Term, f64>;
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
 pub type TermScores = HashMap<Term, HashMap<Url, f64>>;
-// pub type TermScores = HashMap<Term, Vec<(Url, f64)>>;
+
+/// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
+const EPSILON: f64 = 0.0001;
 
 #[repr(C)]
 #[derive(Default)]
@@ -49,7 +51,7 @@ impl TfIdf {
         // Then we compute the inverse document frequency for each term
         let total_docs = self.doc_tfs.len();
         for (term, docs_with_term) in term_counts {
-            let inv_fraction = (total_docs / docs_with_term) as f64;
+            let inv_fraction = (total_docs as f64) / ((docs_with_term as f64) + EPSILON);
             let scaled = inv_fraction.log10();
             self.idfs.insert(term.clone(), scaled);
         }
@@ -60,10 +62,8 @@ impl TfIdf {
                 if let Some(idf) = self.idfs.get(doc_term) {
                     let doc_term_score = freq * idf;
                     if let Some(ts) = self.term_scores.get_mut(doc_term) {
-                        // ts.push((doc.clone(), doc_term_score));
                         ts.insert(doc.clone(), doc_term_score);
                     } else {
-                        // let ts = vec![(doc.clone(), doc_term_score)];
                         let mut ts = HashMap::new();
                         ts.insert(doc.clone(), doc_term_score);
                         self.term_scores.insert(doc_term.clone(), ts);
