@@ -30,6 +30,11 @@ local function update_progress_window(buf, message)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { message })
 end
 
+local function close_progress_window(win)
+    vim.api.nvim_win_close(win, true)
+    vim.cmd("redraw")
+end
+
 -- https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Term-frequency
 ---@param rfc_text string The raw text content of the RFC
 ---@return TermFreqs frequences The term frequencies of input text
@@ -70,11 +75,8 @@ function M.build_index(rfcs)
         local params = {
             url = url
         }
-        -- print("I", i)
         if i % 100 == 0 then
             local msg = string.format("Processed RFC %s", i)
-            -- vim.api.nvim_echo({ { msg, "None" } }, false, {})
-            -- vim.o.statusline = msg
             update_progress_window(buf, msg)
             vim.cmd("redraw")
         end
@@ -87,8 +89,12 @@ function M.build_index(rfcs)
         end
     end
 
+    update_progress_window(buf, "Finishing index")
     r.tf_idf_finish(index)
+
+    update_progress_window(buf, "Saving index")
     r.tf_idf_save(index, "./index.json")
+    close_progress_window(win)
     return index
 end
 

@@ -36,8 +36,7 @@ impl TfIdf {
     pub fn finish(&mut self) {
         // First, we collect all terms and the number of docs they appear in
         let mut term_counts: HashMap<&String, usize> = HashMap::new();
-        let mut docs_with_term: HashMap<String, Vec<String>> = HashMap::new();
-        for (doc, doc_terms) in &self.doc_tfs {
+        for doc_terms in self.doc_tfs.values() {
             for term in doc_terms.keys() {
                 if let Some(v) = term_counts.get(term) {
                     term_counts.insert(term, v + 1);
@@ -109,9 +108,13 @@ impl TfIdf {
         scores_list.into_iter().map(|(url, _)| url).collect()
     }
 
-    pub fn save(&self, path: &str) {
-        let file = std::fs::File::create(path).unwrap();
-        serde_json::to_writer(file, &self.term_scores).unwrap();
+    pub fn save(&self, _path: &str) {
+        let index_file = std::fs::File::create("/tmp/index.json").unwrap();
+        let idfs_file = std::fs::File::create("/tmp/idfs.json").unwrap();
+        let doc_tfs_file = std::fs::File::create("/tmp/doc_tfs.json").unwrap();
+        simd_json::to_writer(index_file, &self.term_scores).unwrap();
+        simd_json::to_writer(idfs_file, &self.idfs).unwrap();
+        simd_json::to_writer(doc_tfs_file, &self.doc_tfs).unwrap();
     }
 }
 
@@ -126,19 +129,6 @@ pub fn save_input_number_as_json_to_custom_path(val: i32, path: &str) -> std::io
     serde_json::to_writer(file, &val).unwrap();
     Ok(())
 }
-
-// pub fn save_tf_idf(tf_idf: Box<HashMap<String, HashMap<String, f64>>>, path: &str) {
-//     let f = std::fs::File::create(path).unwrap();
-//     eprintln!("tf_idf: {:?}", *tf_idf);
-//     match serde_json::to_writer(f, &*tf_idf) {
-//         Ok(_) => {}
-//         Err(e) => {
-//             let mut ef = std::fs::File::create("./error").unwrap();
-//             ef.write_all(e.to_string().as_bytes()).unwrap();
-//             ef.flush().unwrap();
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

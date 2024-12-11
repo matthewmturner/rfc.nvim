@@ -34,7 +34,6 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
     let key = unsafe { CStr::from_ptr(doc) };
     match key.to_str() {
         Ok(k) => {
-            eprintln!("DEBUG: Doc {k}");
             let term_freqs = Box::from_raw(term_freqs);
             tf_idf.doc_tfs.insert(k.to_owned(), *term_freqs);
         }
