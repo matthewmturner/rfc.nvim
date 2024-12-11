@@ -34,6 +34,7 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
     let key = unsafe { CStr::from_ptr(doc) };
     match key.to_str() {
         Ok(k) => {
+            eprintln!("DEBUG: Doc {k}");
             let term_freqs = Box::from_raw(term_freqs);
             tf_idf.doc_tfs.insert(k.to_owned(), *term_freqs);
         }
@@ -45,9 +46,25 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
 
 #[no_mangle]
 pub unsafe extern "C" fn tf_idf_finish(tf_idf: *mut TfIdf) -> *mut TfIdf {
+    if tf_idf.is_null() {}
     let tf_idf = unsafe { &mut *tf_idf };
     tf_idf.finish();
     tf_idf
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tf_idf_save(tf_idf: *mut TfIdf, path: *const c_char) {
+    if tf_idf.is_null() {}
+    let tf_idf = unsafe { &mut *tf_idf };
+    let path = unsafe { CStr::from_ptr(path) };
+    match path.to_str() {
+        Ok(p) => {
+            tf_idf.save(p);
+        }
+        Err(e) => {
+            eprintln!("Error converting path to utf8")
+        }
+    }
 }
 
 #[no_mangle]

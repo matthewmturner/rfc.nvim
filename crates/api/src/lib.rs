@@ -108,6 +108,11 @@ impl TfIdf {
         // Return only the URLs
         scores_list.into_iter().map(|(url, _)| url).collect()
     }
+
+    pub fn save(&self, path: &str) {
+        let file = std::fs::File::create(path).unwrap();
+        serde_json::to_writer(file, &self.term_scores).unwrap();
+    }
 }
 
 pub fn save_json() -> std::io::Result<()> {

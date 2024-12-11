@@ -39,11 +39,13 @@ function M.refresh()
         local rfcs = {}
         if raw_rfcs then
             for i, entry in ipairs(raw_rfcs) do
-                rfcs[i] = parse.parse_rfc(entry)
+                local rfc = parse.parse_rfc(entry)
+                table.insert(rfcs, i, rfc)
+                -- rfcs[i] = parse.parse_rfc(entry)
             end
         end
 
-        local index = tf_idf.build_index(rfcs)
+        tf_idf.build_index(rfcs)
     end
 end
 

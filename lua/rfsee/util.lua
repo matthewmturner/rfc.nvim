@@ -11,8 +11,10 @@ function M.split(input, sep)
     local t = {}
     local pattern = "(.-)" .. sep
 
+    local i = 1
     for match, _ in string.gmatch(input .. sep, pattern) do
-        table.insert(t, match)
+        table.insert(t, i, match)
+        i = i + 1
     end
 
     return t

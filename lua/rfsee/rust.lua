@@ -17,7 +17,8 @@ void tf_insert_term(TermFrequenciesHandle, const char*, float);
 
 TfIdfHandle tf_idf_create();
 void tf_idf_insert_doc_tfs(TfIdfHandle, const char*, TermFrequenciesHandle);
-TfIdfHandle tf_idf_finish(TfIdfHandle);
+void tf_idf_finish(TfIdfHandle);
+void tf_idf_save(TfIdfHandle, const char*);
 
 // void save_tf_idf(TfIdfHandle, const char*);
 

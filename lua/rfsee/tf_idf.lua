@@ -8,6 +8,28 @@ local r = require("rfsee.rust")
 ---@alias TermFreqs {}
 ---@alias TfIdfIndex {}
 
+local function create_progress_window()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local width = 20
+    local height = 1
+    local row = 0
+    local col = vim.o.columns - (width + 1) -- Place it at the top right
+    local win = vim.api.nvim_open_win(buf, false, {
+        relative = "editor",
+        width = width,
+        height = height,
+        row = row,
+        col = col,
+        style = "minimal",
+        border = "rounded",
+    })
+    return buf, win
+end
+
+local function update_progress_window(buf, message)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { message })
+end
+
 -- https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Term-frequency
 ---@param rfc_text string The raw text content of the RFC
 ---@return TermFreqs frequences The term frequencies of input text
@@ -41,23 +63,32 @@ RFC_URL_SUFFIX = ".txt"
 ---@param rfcs RFC[] Parsed RFCs
 ---@return TfIdfIndex index Built index from parsed RFCs
 function M.build_index(rfcs)
-    local index_builder = r.tf_idf_create()
-    for _, rfc in ipairs(rfcs) do
+    local index = r.tf_idf_create()
+    local buf, win = create_progress_window()
+    for i, rfc in pairs(rfcs) do
         local url = string.format("%s%s%s", RFC_URL_BASE, rfc.number, RFC_URL_SUFFIX)
         local params = {
             url = url
         }
+        -- print("I", i)
+        if i % 100 == 0 then
+            local msg = string.format("Processed RFC %s", i)
+            -- vim.api.nvim_echo({ { msg, "None" } }, false, {})
+            -- vim.o.statusline = msg
+            update_progress_window(buf, msg)
+            vim.cmd("redraw")
+        end
         local rfc_res = plenary.curl.get(params)
         if rfc_res.status == 200 then
             local tf = extract_term_frequencies(rfc_res.body)
-            r.tf_idf_insert_doc_tfs(index_builder, url, tf)
+            r.tf_idf_insert_doc_tfs(index, url, tf)
         else
             print(rfc_res.status)
         end
     end
 
-    local index = r.tf_idf_finish(index_builder)
-    -- r.save_tf_idf(ffi_index, "./index.json")
+    r.tf_idf_finish(index)
+    r.tf_idf_save(index, "./index.json")
     return index
 end
 
