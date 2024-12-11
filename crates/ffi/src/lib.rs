@@ -1,4 +1,4 @@
-use api::{TermFreqs, TfIdf, TfIdfBuilder};
+use api::{TermFreqs, TfIdf};
 use std::ffi::*;
 use std::os::raw::c_char;
 
@@ -12,8 +12,8 @@ pub struct SaveResult {
 }
 
 #[no_mangle]
-pub extern "C" fn tf_idf_builder_create() -> *mut TfIdfBuilder {
-    let index = api::TfIdfBuilder::default();
+pub extern "C" fn tf_idf_create() -> *mut TfIdf {
+    let index = api::TfIdf::default();
     let boxed = Box::new(index);
     Box::into_raw(boxed)
 }
@@ -22,20 +22,20 @@ pub extern "C" fn tf_idf_builder_create() -> *mut TfIdfBuilder {
 ///
 /// # Safety
 #[no_mangle]
-pub unsafe extern "C" fn tf_idf_builder_insert_doc_tfs(
-    tf_idf_builder: *mut TfIdfBuilder,
+pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
+    tf_idf: *mut TfIdf,
     doc: *const c_char,
     term_freqs: *mut TermFreqs,
 ) {
     if term_freqs.is_null() || doc.is_null() {
         return;
     }
-    let tf_idf_builder = unsafe { &mut *tf_idf_builder };
+    let tf_idf = unsafe { &mut *tf_idf };
     let key = unsafe { CStr::from_ptr(doc) };
     match key.to_str() {
         Ok(k) => {
             let term_freqs = Box::from_raw(term_freqs);
-            tf_idf_builder.doc_tfs.insert(k.to_owned(), *term_freqs);
+            tf_idf.doc_tfs.insert(k.to_owned(), *term_freqs);
         }
         Err(_) => {
             eprintln!("ERROR: Unable to convert key to UTF-8")
@@ -44,8 +44,8 @@ pub unsafe extern "C" fn tf_idf_builder_insert_doc_tfs(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tf_idf_builder_finish(tf_idf_builder: *mut TfIdfBuilder) -> *mut TfIdf {
-    let tf_idf_builder = unsafe { &mut *tf_idf_builder };
+pub unsafe extern "C" fn tf_idf_finish(tf_idf: *mut TfIdf) -> *mut TfIdf {
+    let tf_idf = unsafe { &mut *tf_idf };
 }
 
 #[no_mangle]

@@ -41,7 +41,7 @@ RFC_URL_SUFFIX = ".txt"
 ---@param rfcs RFC[] Parsed RFCs
 ---@return TfIdfIndex index Built index from parsed RFCs
 function M.build_index(rfcs)
-    local index_builder = r.tf_idf_builder_create()
+    local index_builder = r.tf_idf_create()
     for _, rfc in ipairs(rfcs) do
         local url = string.format("%s%s%s", RFC_URL_BASE, rfc.number, RFC_URL_SUFFIX)
         local params = {
@@ -50,13 +50,13 @@ function M.build_index(rfcs)
         local rfc_res = plenary.curl.get(params)
         if rfc_res.status == 200 then
             local tf = extract_term_frequencies(rfc_res.body)
-            r.tf_idf_builder_insert_doc_tfs(index_builder, url, tf)
+            r.tf_idf_insert_doc_tfs(index_builder, url, tf)
         else
             print(rfc_res.status)
         end
     end
 
-    local index = r.tf_idf_builder_finish(index_builder)
+    local index = r.tf_idf_finish(index_builder)
     -- r.save_tf_idf(ffi_index, "./index.json")
     return index
 end

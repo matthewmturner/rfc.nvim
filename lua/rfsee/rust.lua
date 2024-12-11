@@ -6,7 +6,6 @@ typedef struct {
 } SaveResult;
 
 typedef struct TermFrequencies* TermFrequenciesHandle;
-typedef struct TfIdfBuilder* TfIdfBuilderHandle;
 typedef struct TfIdf* TfIdfHandle;
 
 // SaveResult save_json(void);
@@ -16,9 +15,9 @@ typedef struct TfIdf* TfIdfHandle;
 TermFrequenciesHandle tf_create();
 void tf_insert_term(TermFrequenciesHandle, const char*, float);
 
-TfIdfBuilderHandle tf_idf_builder_create();
-void tf_idf_builder_insert_doc_tfs(TfIdfBuilderHandle, const char*, TermFrequenciesHandle);
-TfIdfHandle tf_idf_builder_finish(TfIdfBuilderHandle);
+TfIdfBuilderHandle tf_idf_create();
+void tf_idf_insert_doc_tfs(TfIdfBuilderHandle, const char*, TermFrequenciesHandle);
+TfIdfHandle tf_idf_finish(TfIdfBuilderHandle);
 
 // void save_tf_idf(TfIdfHandle, const char*);
 
