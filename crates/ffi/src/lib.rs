@@ -46,6 +46,8 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
 #[no_mangle]
 pub unsafe extern "C" fn tf_idf_finish(tf_idf: *mut TfIdf) -> *mut TfIdf {
     let tf_idf = unsafe { &mut *tf_idf };
+    tf_idf.finish();
+    tf_idf
 }
 
 #[no_mangle]

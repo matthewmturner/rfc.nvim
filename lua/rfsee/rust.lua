@@ -15,9 +15,9 @@ typedef struct TfIdf* TfIdfHandle;
 TermFrequenciesHandle tf_create();
 void tf_insert_term(TermFrequenciesHandle, const char*, float);
 
-TfIdfBuilderHandle tf_idf_create();
-void tf_idf_insert_doc_tfs(TfIdfBuilderHandle, const char*, TermFrequenciesHandle);
-TfIdfHandle tf_idf_finish(TfIdfBuilderHandle);
+TfIdfHandle tf_idf_create();
+void tf_idf_insert_doc_tfs(TfIdfHandle, const char*, TermFrequenciesHandle);
+TfIdfHandle tf_idf_finish(TfIdfHandle);
 
 // void save_tf_idf(TfIdfHandle, const char*);
 
