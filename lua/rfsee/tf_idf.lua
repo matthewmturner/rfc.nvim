@@ -5,12 +5,14 @@ local r = require("rfsee.rust")
 
 -- rfsee.parse.lua
 
+---@alias TermFreqs {}
 ---@alias TfIdfIndex {}
 
 -- https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Term-frequency
 ---@param rfc_text string The raw text content of the RFC
----@return table<string, float>, unknown frequences The term frequencies of input text
+---@return TermFreqs frequences The term frequencies of input text
 local function extract_term_frequencies(rfc_text)
+    -- TODO: Move to Rust / FFI
     local token_counts = {}
     local terms = 0
     for token in string.gmatch(rfc_text, "%a+") do
@@ -23,14 +25,12 @@ local function extract_term_frequencies(rfc_text)
         terms = terms + 1
     end
 
-    local frequencies = {}
-    local tf = r.create_term_freqs()
+    local tf = r.tf_create()
     for t, c in pairs(token_counts) do
-        r.insert_term_freqs(tf, t, c / terms)
-        frequencies[t] = c / terms
+        r.tf_insert_term(tf, t, c / terms)
     end
 
-    return frequencies, tf
+    return tf
 end
 
 local M = {}
@@ -41,8 +41,7 @@ RFC_URL_SUFFIX = ".txt"
 ---@param rfcs RFC[] Parsed RFCs
 ---@return TfIdfIndex index Built index from parsed RFCs
 function M.build_index(rfcs)
-    local index = {}
-    local ffi_index = r.create_tf_idf()
+    local index_builder = r.tf_idf_builder_create()
     for _, rfc in ipairs(rfcs) do
         local url = string.format("%s%s%s", RFC_URL_BASE, rfc.number, RFC_URL_SUFFIX)
         local params = {
@@ -50,17 +49,15 @@ function M.build_index(rfcs)
         }
         local rfc_res = plenary.curl.get(params)
         if rfc_res.status == 200 then
-            local term_frequencies, ffi_tf = extract_term_frequencies(rfc_res.body)
-            index[url] = term_frequencies
-            r.insert_tf_idf(ffi_index, url, ffi_tf)
-            -- for t, f in pairs(term_frequencies) do
-            --     print(t, f)
-            -- end
+            local tf = extract_term_frequencies(rfc_res.body)
+            r.tf_idf_builder_insert_doc_tfs(index_builder, url, tf)
         else
             print(rfc_res.status)
         end
     end
-    r.save_tf_idf(ffi_index, "./index.json")
+
+    local index = r.tf_idf_builder_finish(index_builder)
+    -- r.save_tf_idf(ffi_index, "./index.json")
     return index
 end
 

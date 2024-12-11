@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use api::{TermFreqs, TfIdf, TfIdfBuilder};
 use std::ffi::*;
 use std::os::raw::c_char;
 
@@ -11,35 +11,31 @@ pub struct SaveResult {
     error: bool,
 }
 
-// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
-// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
-// not meet them - so we use `String`.
-type TermFrequencies = HashMap<String, f64>;
-type TfIdf = HashMap<String, TermFrequencies>;
-type Url = String;
-
 #[no_mangle]
-pub extern "C" fn create_tf_idf() -> *mut TfIdf {
-    let map: HashMap<Url, TermFrequencies> = HashMap::new();
-    let boxed = Box::new(map);
+pub extern "C" fn tf_idf_builder_create() -> *mut TfIdfBuilder {
+    let index = api::TfIdfBuilder::default();
+    let boxed = Box::new(index);
     Box::into_raw(boxed)
 }
 
+/// Add a document's term frequencies to the index
+///
+/// # Safety
 #[no_mangle]
-pub unsafe extern "C" fn insert_tf_idf(
-    tf_idf: *mut TfIdf,
-    key: *const c_char,
-    term_freqs: *mut TermFrequencies,
+pub unsafe extern "C" fn tf_idf_builder_insert_doc_tfs(
+    tf_idf_builder: *mut TfIdfBuilder,
+    doc: *const c_char,
+    term_freqs: *mut TermFreqs,
 ) {
-    if term_freqs.is_null() || key.is_null() {
+    if term_freqs.is_null() || doc.is_null() {
         return;
     }
-    let tf_idf = unsafe { &mut *tf_idf };
-    let key = unsafe { CStr::from_ptr(key) };
+    let tf_idf_builder = unsafe { &mut *tf_idf_builder };
+    let key = unsafe { CStr::from_ptr(doc) };
     match key.to_str() {
         Ok(k) => {
             let term_freqs = Box::from_raw(term_freqs);
-            tf_idf.insert(k.to_owned(), *term_freqs);
+            tf_idf_builder.doc_tfs.insert(k.to_owned(), *term_freqs);
         }
         Err(_) => {
             eprintln!("ERROR: Unable to convert key to UTF-8")
@@ -48,20 +44,13 @@ pub unsafe extern "C" fn insert_tf_idf(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn save_tf_idf(tf_idf: *mut TfIdf, path: *const c_char) {
-    let tf_idf = unsafe { Box::from_raw(tf_idf) };
-    let path = unsafe { CStr::from_ptr(path) };
-    match path.to_str() {
-        Ok(p) => {
-            api::save_tf_idf(tf_idf, p);
-        }
-        Err(_) => {}
-    }
+pub unsafe extern "C" fn tf_idf_builder_finish(tf_idf_builder: *mut TfIdfBuilder) -> *mut TfIdf {
+    let tf_idf_builder = unsafe { &mut *tf_idf_builder };
 }
 
 #[no_mangle]
-pub extern "C" fn create_term_freqs() -> *mut TermFrequencies {
-    let map: HashMap<String, f64> = HashMap::new();
+pub extern "C" fn tf_create() -> *mut TermFreqs {
+    let map: TermFreqs = TermFreqs::new();
     let boxed = Box::new(map);
     Box::into_raw(boxed)
 }
@@ -77,16 +66,16 @@ pub extern "C" fn create_term_freqs() -> *mut TermFrequencies {
 /// - The function will return immediately if `term_freqs` or `key` is null.
 /// - Undefined behavior may occur if the requirements above are not met.
 #[no_mangle]
-pub unsafe extern "C" fn insert_term_freqs(
-    term_freqs: *mut TermFrequencies,
-    key: *const c_char,
+pub unsafe extern "C" fn tf_insert_term(
+    term_freqs: *mut TermFreqs,
+    term: *const c_char,
     value: f64,
 ) {
-    if term_freqs.is_null() || key.is_null() {
+    if term_freqs.is_null() || term.is_null() {
         return;
     }
     let term_freqs = unsafe { &mut *term_freqs };
-    let key = unsafe { CStr::from_ptr(key) };
+    let key = unsafe { CStr::from_ptr(term) };
     match key.to_str() {
         Ok(k) => {
             term_freqs.insert(k.to_owned(), value);
@@ -112,7 +101,7 @@ pub unsafe extern "C" fn insert_term_freqs(
 /// - Undefined behavior may occur if the requirements above are not met.
 #[no_mangle]
 pub unsafe extern "C" fn get_term_freqs(
-    term_freqs: *const TermFrequencies,
+    term_freqs: *const TermFreqs,
     key: *const c_char,
 ) -> *const f64 {
     if term_freqs.is_null() || key.is_null() {
@@ -141,25 +130,9 @@ pub unsafe extern "C" fn get_term_freqs(
 /// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably
 ///     elsewhere during this call
 #[no_mangle]
-pub unsafe extern "C" fn free_term_freqs(term_freqs: *mut TermFrequencies) {
+pub unsafe extern "C" fn free_term_freqs(term_freqs: *mut TermFreqs) {
     if !term_freqs.is_null() {
         drop(Box::from_raw(term_freqs));
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn save_json() -> SaveResult {
-    match api::save_json() {
-        Ok(_) => SaveResult { error: false },
-        Err(_) => SaveResult { error: true },
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn save_input_number_as_json(val: i32) -> SaveResult {
-    match api::save_input_number_as_json(val) {
-        Ok(_) => SaveResult { error: false },
-        Err(_) => SaveResult { error: true },
     }
 }
 

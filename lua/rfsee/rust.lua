@@ -6,18 +6,21 @@ typedef struct {
 } SaveResult;
 
 typedef struct TermFrequencies* TermFrequenciesHandle;
+typedef struct TfIdfBuilder* TfIdfBuilderHandle;
 typedef struct TfIdf* TfIdfHandle;
 
-SaveResult save_json(void);
-SaveResult save_input_number_as_json(int);
-SaveResult save_input_number_as_json_to_custom_path(int, const char*);
+// SaveResult save_json(void);
+// SaveResult save_input_number_as_json(int);
+// SaveResult save_input_number_as_json_to_custom_path(int, const char*);
 
-TermFrequenciesHandle create_term_freqs();
-void insert_term_freqs(TermFrequenciesHandle, const char*, float);
+TermFrequenciesHandle tf_create();
+void tf_insert_term(TermFrequenciesHandle, const char*, float);
 
-TfIdfHandle create_tf_idf();
-void insert_tf_idf(TfIdfHandle, const char*, TermFrequenciesHandle);
-void save_tf_idf(TfIdfHandle, const char*);
+TfIdfBuilderHandle tf_idf_builder_create();
+void tf_idf_builder_insert_doc_tfs(TfIdfBuilderHandle, const char*, TermFrequenciesHandle);
+TfIdfHandle tf_idf_builder_finish(TfIdfBuilderHandle);
+
+// void save_tf_idf(TfIdfHandle, const char*);
 
 
 ]])
