@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use regex::Regex;
+
 /// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
 /// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
 /// not meet them - so we use `String`.
@@ -15,6 +17,7 @@ pub type InvDocFreqs = HashMap<Term, f64>;
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
 pub type TermScores = HashMap<Term, HashMap<Url, f64>>;
 
+const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
 const EPSILON: f64 = 0.0001;
 
@@ -35,6 +38,30 @@ pub struct TfIdf {
 }
 
 impl TfIdf {
+    pub fn add_doc(&mut self, url: &str, doc: &str) {
+        let start = std::time::Instant::now();
+        let re = Regex::new(WORD_MATCH_REGEX).unwrap();
+
+        let mut term_counts: HashMap<&str, usize> = HashMap::new();
+        let mut tfs = TermFreqs::new();
+        let mut terms = 0;
+
+        for found in re.find_iter(doc) {
+            if let Some(k) = term_counts.get_mut(found.as_str()) {
+                *k += 1
+            } else {
+                term_counts.insert(found.as_str(), 1);
+            }
+            terms += 1
+        }
+
+        for (t, c) in term_counts {
+            tfs.insert(t.to_string(), (c / terms) as f64);
+        }
+        // eprintln!("EXTRACT TFS took {:?}", start.elapsed());
+        self.doc_tfs.insert(url.to_string(), tfs);
+    }
+
     pub fn finish(&mut self) {
         // First, we collect all terms and the number of docs they appear in
         let mut term_counts: HashMap<&String, usize> = HashMap::new();

@@ -48,17 +48,20 @@ function M.build_index(rfcs)
         local params = {
             url = url
         }
+        local rfc_res = plenary.curl.get(params)
+        if rfc_res.status == 200 then
+            lib.tf_idf_add_doc(index, url, rfc_res.body)
+            -- local tf = extract_term_frequencies(rfc_res.body)
+            -- local tf = lib.extract_tf(rfc_res.body)
+            -- lib.tf_idf_insert_doc_tfs(index, url, tf)
+        else
+            print(rfc_res.status)
+        end
+
         if i % 100 == 0 then
             local msg = string.format("Processed RFC %s", i)
             window.update_progress_window(buf, msg)
             vim.cmd("redraw")
-        end
-        local rfc_res = plenary.curl.get(params)
-        if rfc_res.status == 200 then
-            local tf = extract_term_frequencies(rfc_res.body)
-            lib.tf_idf_insert_doc_tfs(index, url, tf)
-        else
-            print(rfc_res.status)
         end
     end
 

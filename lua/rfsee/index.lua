@@ -2,7 +2,7 @@ local plenary = require('plenary')
 local log = require("rfsee.log")
 local parse = require("rfsee.parse")
 local tf_idf = require("rfsee.tf_idf")
-local r = require("rfsee.rust")
+local r = require("rfsee.ffi")
 
 local M = {}
 

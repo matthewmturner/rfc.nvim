@@ -1,30 +1,22 @@
 local ffi = require("ffi")
 
 ffi.cdef([[
-typedef struct {
-    bool error;
-} SaveResult;
-
 typedef struct TermFrequencies* TermFrequenciesHandle;
 typedef struct TfIdf* TfIdfHandle;
 
-// SaveResult save_json(void);
-// SaveResult save_input_number_as_json(int);
-// SaveResult save_input_number_as_json_to_custom_path(int, const char*);
-
 TermFrequenciesHandle tf_create();
 void tf_insert_term(TermFrequenciesHandle, const char*, float);
+// TermFrequenciesHandle extract_tf(const char*);
 
 TfIdfHandle tf_idf_create();
+void tf_idf_add_doc(TfIdfHandle, const char*, const char*);
 void tf_idf_insert_doc_tfs(TfIdfHandle, const char*, TermFrequenciesHandle);
 void tf_idf_finish(TfIdfHandle);
 void tf_idf_save(TfIdfHandle, const char*);
 
-// void save_tf_idf(TfIdfHandle, const char*);
-
 
 ]])
 
-local lib = ffi.load("/Users/matth/projects/rfsee/crates/ffi/target/debug/libffi.dylib")
+local lib = ffi.load("/Users/matth/projects/rfsee/crates/ffi/target/release/libffi.dylib")
 
 return lib

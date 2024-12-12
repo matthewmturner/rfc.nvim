@@ -2,15 +2,6 @@ use api::{TermFreqs, TfIdf};
 use std::ffi::*;
 use std::os::raw::c_char;
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[repr(C)]
-pub struct SaveResult {
-    error: bool,
-}
-
 #[no_mangle]
 pub extern "C" fn tf_idf_create() -> *mut TfIdf {
     let index = api::TfIdf::default();
@@ -44,6 +35,26 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn tf_idf_add_doc(
+    tf_idf: *mut TfIdf,
+    url: *const c_char,
+    doc: *const c_char,
+) {
+    if url.is_null() || doc.is_null() {}
+
+    let tf_idf = unsafe { &mut *tf_idf };
+    let url = unsafe { CStr::from_ptr(url) };
+    let doc = unsafe { CStr::from_ptr(doc) };
+
+    match (url.to_str(), doc.to_str()) {
+        (Ok(u), Ok(d)) => tf_idf.add_doc(u, d),
+        _ => {
+            eprintln!("ERROR: Error converting doc or url to utf-8");
+        }
+    }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn tf_idf_finish(tf_idf: *mut TfIdf) -> *mut TfIdf {
     if tf_idf.is_null() {}
     let tf_idf = unsafe { &mut *tf_idf };
@@ -65,6 +76,25 @@ pub unsafe extern "C" fn tf_idf_save(tf_idf: *mut TfIdf, path: *const c_char) {
         }
     }
 }
+
+// #[no_mangle]
+// pub unsafe extern "C" fn extract_tf(doc: *const c_char) -> *mut TermFreqs {
+//     if doc.is_null() {}
+//
+//     let doc = unsafe { CStr::from_ptr(doc) };
+//
+//     match doc.to_str() {
+//         Ok(d) => {
+//             let tf = api::extract_tf(d);
+//             let boxed = Box::new(tf);
+//             Box::into_raw(boxed)
+//         }
+//         Err(e) => {
+//             eprintln!("ERROR: Error converting doc to utf-8");
+//             std::ptr::null()
+//         }
+//     }
+// }
 
 #[no_mangle]
 pub extern "C" fn tf_create() -> *mut TermFreqs {
@@ -154,44 +184,11 @@ pub unsafe extern "C" fn free_term_freqs(term_freqs: *mut TermFreqs) {
     }
 }
 
-/// Take input number and save it to provided path as JSON
-/// # Safety
-/// This function is marked as `unsafe` because it takes a raw pointer (`path`) as an argument.
-/// The caller must ensure the following:
-///
-/// - `path` must be non-null. Passing a null pointer will result in undefined behavior.
-/// - `path` must point to a valid null-terminated C-style string.
-/// - The string referenced by `path` must remain valid for the duration of the function call.
-/// - The caller must ensure proper synchronization if this function is called concurrently,
-///   as it could interact with shared resources in `api::save_input_number_as_json_to_custom_path`.
-///
-/// Failure to adhere to these requirements may result in undefined behavior or program crashes.
-#[no_mangle]
-pub unsafe extern "C" fn save_input_number_as_json_to_custom_path(
-    val: i32,
-    path: *const c_char,
-) -> SaveResult {
-    if path.is_null() {
-        return SaveResult { error: true };
-    }
-
-    let c_str = unsafe { CStr::from_ptr(path) };
-    match c_str.to_str() {
-        Ok(s) => match api::save_input_number_as_json_to_custom_path(val, s) {
-            Ok(_) => SaveResult { error: false },
-            Err(_) => SaveResult { error: true },
-        },
-        Err(_) => SaveResult { error: true },
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+        assert_eq!(1, 1);
     }
 }
