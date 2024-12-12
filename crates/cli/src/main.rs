@@ -11,6 +11,8 @@ pub struct Args {
     #[arg(long, short)]
     term: Option<String>,
     #[arg(long, short)]
+    search: Option<String>,
+    #[arg(long, short)]
     keys: bool,
 }
 
@@ -27,6 +29,8 @@ fn main() -> anyhow::Result<()> {
         if let Some(r) = index.get(&term) {
             println!("Results: {r:#?}");
         }
+    } else if let Some(search) = args.search {
+        api::compute_search_scores(search, index);
     } else if args.keys {
         println!("{:#?}", index.keys());
     }
