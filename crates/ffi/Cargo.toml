@@ -7,5 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-api = { path = "../api" }
+api = { path = "../tf_idf" }
 libc = "0.2.167"

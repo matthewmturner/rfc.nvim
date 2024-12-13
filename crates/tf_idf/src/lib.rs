@@ -39,7 +39,7 @@ pub struct TfIdf {
 
 impl TfIdf {
     pub fn add_doc(&mut self, url: &str, doc: &str) {
-        let start = std::time::Instant::now();
+        // eprintln!("INFO: Adding doc: {doc}");
         let re = Regex::new(WORD_MATCH_REGEX).unwrap();
 
         let mut term_counts: HashMap<&str, usize> = HashMap::new();
@@ -56,7 +56,9 @@ impl TfIdf {
         }
 
         for (t, c) in term_counts {
-            tfs.insert(t.to_string(), (c / terms) as f64);
+            let frequency = c as f64 / terms as f64;
+            // eprintln!("INFO: Term {t} has count {c} with frequency {frequency}");
+            tfs.insert(t.to_string(), frequency);
         }
         // eprintln!("EXTRACT TFS took {:?}", start.elapsed());
         self.doc_tfs.insert(url.to_string(), tfs);
@@ -112,6 +114,7 @@ impl TfIdf {
         }
 
         let combined_scores = Self::combine_scores(scores);
+        println!("Docs: {combined_scores:#?}");
     }
 
     pub fn combine_scores(scores: Vec<HashMap<String, f64>>) -> Vec<Url> {
@@ -143,6 +146,42 @@ impl TfIdf {
         simd_json::to_writer(idfs_file, &self.idfs).unwrap();
         simd_json::to_writer(doc_tfs_file, &self.doc_tfs).unwrap();
     }
+}
+
+pub fn combine_scores(scores: Vec<HashMap<String, f64>>) -> Vec<Url> {
+    let mut combined_scores = HashMap::new();
+    for score in scores {
+        for (url, doc_score) in score {
+            if let Some(combined_doc_score) = combined_scores.get_mut(&url) {
+                *combined_doc_score += doc_score;
+            } else {
+                combined_scores.insert(url.clone(), doc_score);
+            }
+        }
+    }
+
+    let mut scores_list: Vec<(Url, f64)> = combined_scores.into_iter().collect();
+
+    // Sort by score in descending order
+    scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(a_score).unwrap());
+
+    // Return only the URLs
+    scores_list.into_iter().map(|(url, _)| url).collect()
+}
+
+pub fn compute_search_scores(search: String, term_scores: TermScores) {
+    // Extract all the terms from the search
+    let terms: Vec<&str> = search.split(" ").collect();
+
+    let mut scores = Vec::new();
+    for term in terms {
+        if let Some(term_scores) = term_scores.get(term) {
+            scores.push(term_scores.clone());
+        }
+    }
+
+    let combined_scores = combine_scores(scores);
+    println!("Docs: {combined_scores:#?}");
 }
 
 pub fn save_json() -> std::io::Result<()> {

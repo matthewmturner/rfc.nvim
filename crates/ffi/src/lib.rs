@@ -1,6 +1,6 @@
-use api::{TermFreqs, TfIdf};
 use std::ffi::*;
 use std::os::raw::c_char;
+use tf_idf::{TermFreqs, TfIdf};
 
 #[no_mangle]
 pub extern "C" fn tf_idf_create() -> *mut TfIdf {
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
             tf_idf.doc_tfs.insert(k.to_owned(), *term_freqs);
         }
         Err(_) => {
-            eprintln!("ERROR: Unable to convert key to UTF-8")
+            // eprintln!("ERROR: Unable to convert key to UTF-8")
         }
     }
 }
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn tf_idf_add_doc(
     match (url.to_str(), doc.to_str()) {
         (Ok(u), Ok(d)) => tf_idf.add_doc(u, d),
         _ => {
-            eprintln!("ERROR: Error converting doc or url to utf-8");
+            // eprintln!("ERROR: Unable to convert doc or url to utf-8");
         }
     }
 }
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn tf_idf_save(tf_idf: *mut TfIdf, path: *const c_char) {
             tf_idf.save(p);
         }
         Err(e) => {
-            eprintln!("Error converting path to utf8")
+            // eprintln!("Error converting path to utf8")
         }
     }
 }
