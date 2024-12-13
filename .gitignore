@@ -43,3 +43,4 @@ luac.out
 crates/api/target/**
 crates/ffi/target/**
 crates/cli/target/**
+crates/fetch/target/**
