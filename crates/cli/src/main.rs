@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use api::TermScores;
 use clap::Parser;
+use tf_idf::TermScores;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
             println!("Results: {r:#?}");
         }
     } else if let Some(search) = args.search {
-        api::compute_search_scores(search, index);
+        tf_idf::compute_search_scores(search, index);
     } else if args.keys {
         println!("{:#?}", index.keys());
     }

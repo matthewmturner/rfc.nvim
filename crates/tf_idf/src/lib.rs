@@ -17,6 +17,9 @@ pub type InvDocFreqs = HashMap<Term, f64>;
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
 pub type TermScores = HashMap<Term, HashMap<Url, f64>>;
 
+const RFC_EDITOR_ADDR: &str = "www.rfc-editor.org:443";
+const RFC_EDITOR_DOMAIN: &str = "www.rfc-editor.org";
+
 const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
 const EPSILON: f64 = 0.0001;
@@ -38,6 +41,8 @@ pub struct TfIdf {
 }
 
 impl TfIdf {
+    pub fn fetch_docs() -> Vec<()> {}
+
     pub fn add_doc(&mut self, url: &str, doc: &str) {
         // eprintln!("INFO: Adding doc: {doc}");
         let re = Regex::new(WORD_MATCH_REGEX).unwrap();
@@ -184,17 +189,17 @@ pub fn compute_search_scores(search: String, term_scores: TermScores) {
     println!("Docs: {combined_scores:#?}");
 }
 
-pub fn save_json() -> std::io::Result<()> {
-    let file = std::fs::File::create("val.json")?;
-    serde_json::to_writer(file, &42).unwrap();
-    Ok(())
-}
-
-pub fn save_input_number_as_json_to_custom_path(val: i32, path: &str) -> std::io::Result<()> {
-    let file = std::fs::File::create(path)?;
-    serde_json::to_writer(file, &val).unwrap();
-    Ok(())
-}
+// pub fn save_json() -> std::io::Result<()> {
+//     let file = std::fs::File::create("val.json")?;
+//     serde_json::to_writer(file, &42).unwrap();
+//     Ok(())
+// }
+//
+// pub fn save_input_number_as_json_to_custom_path(val: i32, path: &str) -> std::io::Result<()> {
+//     let file = std::fs::File::create(path)?;
+//     serde_json::to_writer(file, &val).unwrap();
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod tests {
