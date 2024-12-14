@@ -40,7 +40,7 @@ luac.out
 *.hex
 
 # Crates
-crates/api/target/**
+crates/tf_idf/target/**
 crates/ffi/target/**
 crates/cli/target/**
 crates/fetch/target/**
