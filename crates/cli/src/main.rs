@@ -2,7 +2,8 @@ use std::{fs::File, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
 use tf_idf::{
-    compute_search_scores, compute_search_scores_v2, fetch_rfcs, TermScores, TermScoresV2, TfIdf,
+    compute_search_scores, compute_search_scores_v2, compute_search_scores_v3, fetch_rfcs, Index,
+    TermScores, TermScoresV2, TfIdf,
 };
 
 #[derive(Debug, Parser)]
@@ -62,9 +63,12 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 println!("Saving index took {:?}", saving_start.elapsed());
             }
             Command::Search { terms, index_path } => {
+                let start = Instant::now();
                 let file = File::open(index_path)?;
-                let index: TermScoresV2 = simd_json::from_reader(file)?;
-                let results = compute_search_scores_v2(terms, &index);
+                let index: Index = simd_json::from_reader(file)?;
+                println!("Opening index file took: {:?}", start.elapsed());
+                let results = compute_search_scores_v3(terms, index);
+                println!("Total search time: {:?}", start.elapsed());
                 println!("Docs: {results:#?}");
             }
         }

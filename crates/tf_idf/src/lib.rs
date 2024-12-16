@@ -13,13 +13,16 @@ pub type Term = String;
 /// The source of the document
 pub type Url = String;
 /// Term frequency, tf(t,d), is the relative frequency of term t within document d.
-pub type TermFreqs = HashMap<Term, f64>;
+pub type TermFreqs = HashMap<Term, f32>;
 pub type DocTermFreqs = HashMap<Url, TermFreqs>;
-pub type InvDocFreqs = HashMap<Term, f64>;
+pub type InvDocFreqs = HashMap<Term, f32>;
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
-pub type TermScores = HashMap<Term, HashMap<Url, f64>>;
+pub type TermScores = HashMap<Term, HashMap<Url, f32>>;
 pub type ProcessedRfcs = HashMap<Url, ProcessedRfc>;
-pub type TermScoresV2 = HashMap<Term, HashMap<Url, RfcWithTermScore>>;
+pub type TermScoresV2 = HashMap<Term, HashMap<Url, SerializedRfcWithTermScore>>;
+pub type RfcNumber = i32;
+pub type TermScore = f32;
+pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
 const RFC_DELIMITER: &str = "\n\n";
@@ -28,7 +31,7 @@ const RFC_DELIMITER: &str = "\n\n";
 
 const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
-const EPSILON: f64 = 0.0001;
+const EPSILON: f32 = 0.0001;
 const SEARCH_TERMS_DELIMITER: &str = " ";
 
 pub struct RfcEntry {
@@ -48,7 +51,6 @@ pub struct RfcEntry {
 pub struct ProcessedRfc {
     number: i32,
     url: String,
-    title: String,
     term_freqs: TermFreqs,
 }
 
@@ -57,7 +59,26 @@ pub struct RfcWithTermScore {
     number: i32,
     url: String,
     title: String,
-    score: f64,
+    score: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RfcDetails {
+    title: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Index {
+    rfc_details: RfcDetailsMap,
+    term_scores: HashMap<Term, HashMap<RfcNumber, TermScore>>,
+}
+
+/// Excludes URL because it can be constructed from number
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SerializedRfcWithTermScore {
+    number: i32,
+    title: String,
+    score: f32,
 }
 
 pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
@@ -114,6 +135,7 @@ pub struct TfIdf {
     pub term_scores: TermScores,
     pub processed_rfcs: ProcessedRfcs,
     pub term_scores_v2: TermScoresV2,
+    pub index: Index,
 }
 
 impl TfIdf {
@@ -134,7 +156,7 @@ impl TfIdf {
         }
 
         for (t, c) in term_counts {
-            let frequency = c as f64 / terms as f64;
+            let frequency = c as f32 / terms as f32;
             tfs.insert(t.to_string(), frequency);
         }
 
@@ -159,16 +181,19 @@ impl TfIdf {
             }
 
             for (t, c) in term_counts {
-                let frequency = c as f64 / terms as f64;
+                let frequency = c as f32 / terms as f32;
                 tfs.insert(t.to_string(), frequency);
             }
 
             let indexed_rfc = ProcessedRfc {
                 number: rfc.number,
-                title: rfc.title,
                 url: rfc.url.clone(),
                 term_freqs: tfs,
             };
+
+            self.index
+                .rfc_details
+                .insert(rfc.number, RfcDetails { title: rfc.title });
 
             self.processed_rfcs.insert(rfc.url, indexed_rfc);
         }
@@ -190,7 +215,7 @@ impl TfIdf {
         // Then we compute the inverse document frequency for each term
         let total_docs = self.doc_tfs.len();
         for (term, docs_with_term) in term_counts {
-            let inv_fraction = (total_docs as f64) / ((docs_with_term as f64) + EPSILON);
+            let inv_fraction = (total_docs as f32) / ((docs_with_term as f32) + EPSILON);
             let scaled = inv_fraction.log10();
             self.idfs.insert(term.clone(), scaled);
         }
@@ -228,28 +253,24 @@ impl TfIdf {
         // Then we compute the inverse document frequency for each term
         let total_docs = self.processed_rfcs.len();
         for (term, docs_with_term) in term_counts {
-            let inv_fraction = (total_docs as f64) / ((docs_with_term as f64) + EPSILON);
+            let inv_fraction = (total_docs as f32) / ((docs_with_term as f32) + EPSILON);
             let scaled = inv_fraction.log10();
             self.idfs.insert(term.clone(), scaled);
         }
 
         // Then we compute the score for each term in all documents
-        for (doc, rfc) in &self.processed_rfcs {
+        for (_doc, rfc) in &self.processed_rfcs {
             for (doc_term, freq) in &rfc.term_freqs {
                 if let Some(idf) = self.idfs.get(doc_term) {
                     let doc_term_score = freq * idf;
-                    let rfc_with_ts = RfcWithTermScore {
-                        number: rfc.number,
-                        url: rfc.url.clone(),
-                        title: rfc.title.clone(),
-                        score: doc_term_score,
-                    };
-                    if let Some(ts) = self.term_scores_v2.get_mut(doc_term) {
-                        ts.insert(doc.clone(), rfc_with_ts);
+                    if let Some(term_scores_per_doc) = self.index.term_scores.get_mut(doc_term) {
+                        term_scores_per_doc.insert(rfc.number, doc_term_score);
                     } else {
-                        let mut ts = HashMap::new();
-                        ts.insert(doc.clone(), rfc_with_ts);
-                        self.term_scores_v2.insert(doc_term.clone(), ts);
+                        let mut term_scores_per_doc = HashMap::new();
+                        term_scores_per_doc.insert(rfc.number, doc_term_score);
+                        self.index
+                            .term_scores
+                            .insert(doc_term.to_string(), term_scores_per_doc);
                     }
                 }
             }
@@ -270,7 +291,7 @@ impl TfIdf {
         Self::combine_scores(scores)
     }
 
-    pub fn combine_scores(scores: Vec<HashMap<String, f64>>) -> Vec<Url> {
+    pub fn combine_scores(scores: Vec<HashMap<String, f32>>) -> Vec<Url> {
         let mut combined_scores = HashMap::new();
         for score in scores {
             for (url, doc_score) in score {
@@ -282,7 +303,7 @@ impl TfIdf {
             }
         }
 
-        let mut scores_list: Vec<(Url, f64)> = combined_scores.into_iter().collect();
+        let mut scores_list: Vec<(Url, f32)> = combined_scores.into_iter().collect();
 
         // Sort by score in descending order
         scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(a_score).unwrap());
@@ -295,13 +316,13 @@ impl TfIdf {
         let index_file = std::fs::File::create("/tmp/index.json").unwrap();
         // let idfs_file = std::fs::File::create("/tmp/idfs.json").unwrap();
         // let doc_tfs_file = std::fs::File::create("/tmp/doc_tfs.json").unwrap();
-        simd_json::to_writer(index_file, &self.term_scores_v2).unwrap();
+        simd_json::to_writer(index_file, &self.index).unwrap();
         // simd_json::to_writer(idfs_file, &self.idfs).unwrap();
         // simd_json::to_writer(doc_tfs_file, &self.doc_tfs).unwrap();
     }
 }
 
-pub fn combine_scores(scores: Vec<HashMap<String, f64>>) -> Vec<Url> {
+pub fn combine_scores(scores: Vec<HashMap<String, f32>>) -> Vec<Url> {
     let mut combined_scores = HashMap::new();
     for score in scores {
         for (url, doc_score) in score {
@@ -313,7 +334,7 @@ pub fn combine_scores(scores: Vec<HashMap<String, f64>>) -> Vec<Url> {
         }
     }
 
-    let mut scores_list: Vec<(Url, f64)> = combined_scores.into_iter().collect();
+    let mut scores_list: Vec<(Url, f32)> = combined_scores.into_iter().collect();
 
     // Sort by score in descending order
     scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(a_score).unwrap());
@@ -338,8 +359,10 @@ pub fn compute_search_scores(search: String, term_scores: &TermScores) -> Vec<St
     combine_scores(scores)
 }
 
-pub fn combine_scores_v2(scores: Vec<HashMap<String, RfcWithTermScore>>) -> Vec<RfcWithTermScore> {
-    let mut combined_scores: HashMap<String, RfcWithTermScore> = HashMap::new();
+pub fn combine_scores_v2(
+    scores: Vec<HashMap<String, SerializedRfcWithTermScore>>,
+) -> Vec<SerializedRfcWithTermScore> {
+    let mut combined_scores: HashMap<String, SerializedRfcWithTermScore> = HashMap::new();
     for score in scores {
         for (url, rfc) in score {
             if let Some(combined_doc_score) = combined_scores.get_mut(&url) {
@@ -350,7 +373,8 @@ pub fn combine_scores_v2(scores: Vec<HashMap<String, RfcWithTermScore>>) -> Vec<
         }
     }
 
-    let mut scores_list: Vec<(Url, RfcWithTermScore)> = combined_scores.into_iter().collect();
+    let mut scores_list: Vec<(Url, SerializedRfcWithTermScore)> =
+        combined_scores.into_iter().collect();
 
     // Sort by score in descending order
     scores_list
@@ -363,7 +387,7 @@ pub fn combine_scores_v2(scores: Vec<HashMap<String, RfcWithTermScore>>) -> Vec<
 pub fn compute_search_scores_v2(
     search: String,
     term_scores: &TermScoresV2,
-) -> Vec<RfcWithTermScore> {
+) -> Vec<SerializedRfcWithTermScore> {
     // Extract all the terms from the search
     let terms: Vec<&str> = search.split(SEARCH_TERMS_DELIMITER).collect();
 
@@ -377,6 +401,64 @@ pub fn compute_search_scores_v2(
 
     // Combine the scores by adding them for each document
     combine_scores_v2(scores)
+}
+
+pub fn combine_scores_v3(scores: Vec<HashMap<i32, f32>>) -> Vec<i32> {
+    let mut combined_scores: HashMap<i32, f32> = HashMap::new();
+    for score in scores {
+        for (rfc_num, term_score) in score {
+            if let Some(combined_doc_score) = combined_scores.get_mut(&rfc_num) {
+                *combined_doc_score += term_score;
+            } else {
+                combined_scores.insert(rfc_num, term_score);
+            }
+        }
+    }
+
+    let mut scores_list: Vec<(i32, f32)> = combined_scores.into_iter().collect();
+
+    // Sort by score in descending order
+    scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(&a_score).unwrap());
+
+    // Return only the URLs
+    scores_list.into_iter().map(|(rfc, _)| rfc).collect()
+}
+
+#[derive(Debug)]
+pub struct RfcSearchResult {
+    url: String,
+    title: String,
+}
+
+pub fn compute_search_scores_v3(search: String, index: Index) -> Vec<RfcSearchResult> {
+    // Extract all the terms from the search
+    let terms: Vec<&str> = search.split(SEARCH_TERMS_DELIMITER).collect();
+
+    // Extract the top documents for each term
+    let mut scores = Vec::new();
+    for term in terms {
+        if let Some(term_scores) = index.term_scores.get(term) {
+            scores.push(term_scores.clone());
+        }
+    }
+
+    // Combine the scores by adding them for each document
+    let rfcs = combine_scores_v3(scores);
+    rfcs.iter()
+        .map(|n| {
+            if let Some(details) = index.rfc_details.get(n) {
+                RfcSearchResult {
+                    url: format!("https://www.rfc-editor.org/rfc/rfc{n}.txt"),
+                    title: details.title.clone(),
+                }
+            } else {
+                RfcSearchResult {
+                    url: format!("https://www.rfc-editor.org/rfc/rfc{n}.txt"),
+                    title: "MISSING TITLE".to_string(),
+                }
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
