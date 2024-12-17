@@ -19,7 +19,7 @@ pub type InvDocFreqs = HashMap<Term, f32>;
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
 pub type ProcessedRfcs = HashMap<Url, ProcessedRfc>;
 pub type RfcNumber = i32;
-pub type TermScore = f32;
+pub type TermScore = i32;
 pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
@@ -172,12 +172,15 @@ impl TfIdf {
         self.processed_rfcs.iter().for_each(|(_doc, rfc)| {
             for (doc_term, freq) in &rfc.term_freqs {
                 if let Some(idf) = self.idfs.get(doc_term) {
-                    let doc_term_score = freq * idf;
+                    // there are often lots of 0s preceding actual score, we can remove those
+                    let doc_term_score = (freq * idf) * 1_000_000_000.0;
+                    let rounded_doc_term_score = doc_term_score.round() as i32;
+                    // let rounded_doc_term_score = (doc_term_score * 100000.0).round() / 100000.0;
                     if let Some(term_scores_per_doc) = self.index.term_scores.get_mut(doc_term) {
-                        term_scores_per_doc.insert(rfc.number, doc_term_score);
+                        term_scores_per_doc.insert(rfc.number, rounded_doc_term_score);
                     } else {
                         let mut term_scores_per_doc = HashMap::new();
-                        term_scores_per_doc.insert(rfc.number, doc_term_score);
+                        term_scores_per_doc.insert(rfc.number, rounded_doc_term_score);
                         self.index
                             .term_scores
                             .insert(doc_term.to_string(), term_scores_per_doc);
@@ -193,8 +196,8 @@ impl TfIdf {
     }
 }
 
-pub fn combine_scores(scores: Vec<HashMap<i32, f32>>) -> Vec<i32> {
-    let mut combined_scores: HashMap<i32, f32> = HashMap::new();
+pub fn combine_scores(scores: Vec<HashMap<i32, i32>>) -> Vec<i32> {
+    let mut combined_scores: HashMap<i32, i32> = HashMap::new();
     for score in scores {
         for (rfc_num, term_score) in score {
             if let Some(combined_doc_score) = combined_scores.get_mut(&rfc_num) {
@@ -205,10 +208,10 @@ pub fn combine_scores(scores: Vec<HashMap<i32, f32>>) -> Vec<i32> {
         }
     }
 
-    let mut scores_list: Vec<(i32, f32)> = combined_scores.into_iter().collect();
+    let mut scores_list: Vec<(i32, i32)> = combined_scores.into_iter().collect();
 
     // Sort by score in descending order
-    scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(&a_score).unwrap());
+    scores_list.sort_by(|(_, a_score), (_, b_score)| b_score.partial_cmp(a_score).unwrap());
 
     // Return only the URLs
     scores_list.into_iter().map(|(rfc, _)| rfc).collect()
