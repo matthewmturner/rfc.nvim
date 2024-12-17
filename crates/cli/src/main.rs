@@ -34,7 +34,7 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 println!("Fetching RFCs took {:?}", start.elapsed());
                 let processing_start = Instant::now();
                 let mut index = TfIdf::default();
-                for rfc in rfcs {
+                for rfc in rfcs.into_iter() {
                     if rfc.number % 1000 == 0 {
                         println!("Processing RFC {}", rfc.number);
                     }
