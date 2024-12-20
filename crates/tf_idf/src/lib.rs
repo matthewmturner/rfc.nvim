@@ -1,12 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use fetch::fetch;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-
-/// Exposed via an opaque pointer via FFI. If we weren't saving as Json we would probably be okay
-/// with `CString` but Json has stricter requirements for key values and `CString` when serialized does
-/// not meet them - so we use `String`.
 
 /// A term in a document
 pub type Term = String;
@@ -24,14 +23,16 @@ pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
 const RFC_DELIMITER: &str = "\n\n";
-// const RFC_EDITOR_ADDR: &str = "www.rfc-editor.org:443";
-const RFC_EDITOR_URL_BASE: &str = "www.rfc-editor.org/rfc/rfc";
+const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
 const RFC_EDITOR_FILE_TYPE: &str = "txt";
 
 const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
 const EPSILON: f32 = 0.0001;
 const SEARCH_TERMS_DELIMITER: &str = " ";
+
+const INDEX_FILE_NAME: &str = "index.json";
+const DEFAULT_INDEX_PATH: &str = "/tmp/index.json";
 
 pub struct RfcEntry {
     pub number: i32,
@@ -55,6 +56,29 @@ pub struct Index {
     rfc_details: RfcDetailsMap,
     /// Map of terms to map of docs with that term and its score
     term_scores: HashMap<Term, HashMap<RfcNumber, TermScore>>,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct RfcSearchResult {
+    pub url: String,
+    pub title: String,
+}
+
+pub fn get_index_path(custom_path: Option<PathBuf>) -> PathBuf {
+    if let Some(path) = custom_path {
+        path
+    } else if let Some(project_dirs) =
+        directories::ProjectDirs::from("com", "matthewmturner", "rfsee")
+    {
+        let data_dir = project_dirs.data_dir();
+        if !data_dir.exists() {
+            std::fs::create_dir_all(data_dir).unwrap();
+        }
+        data_dir.to_path_buf().join(INDEX_FILE_NAME)
+    } else {
+        PathBuf::from(DEFAULT_INDEX_PATH)
+    }
 }
 
 pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
@@ -112,6 +136,17 @@ pub struct TfIdf {
 }
 
 impl TfIdf {
+    pub fn fetch_rfcs(&mut self) -> anyhow::Result<()> {
+        let rfcs = fetch_rfcs()?;
+        for rfc in rfcs {
+            if rfc.content.is_some() {
+                self.add_rfc_entry(rfc);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn add_rfc_entry(&mut self, rfc: RfcEntry) {
         let re = Regex::new(WORD_MATCH_REGEX).unwrap();
 
@@ -190,9 +225,11 @@ impl TfIdf {
         });
     }
 
-    pub fn save(&self, _path: &str) {
-        let index_file = std::fs::File::create("/tmp/index.json").unwrap();
-        simd_json::to_writer(index_file, &self.index).unwrap();
+    pub fn save(&self, path: &Path) {
+        {
+            let index_file = std::fs::File::create(path).unwrap();
+            simd_json::to_writer(index_file, &self.index).unwrap();
+        }
     }
 }
 
@@ -215,13 +252,6 @@ pub fn combine_scores(scores: Vec<HashMap<i32, i32>>) -> Vec<i32> {
 
     // Return only the URLs
     scores_list.into_iter().map(|(rfc, _)| rfc).collect()
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct RfcSearchResult {
-    url: String,
-    title: String,
 }
 
 pub fn compute_search_scores(search: String, index: Index) -> Vec<RfcSearchResult> {

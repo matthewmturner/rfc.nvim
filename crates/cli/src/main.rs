@@ -3,29 +3,29 @@ use std::{fs::File, path::PathBuf, time::Instant};
 use clap::{Parser, Subcommand};
 use tf_idf::{compute_search_scores, fetch_rfcs, Index, TfIdf};
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Debug, Parser)]
 #[command(version, about)]
 pub struct Args {
     #[command(subcommand)]
     command: Option<Command>,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Clone, Debug, Subcommand)]
 enum Command {
     Index {
         #[arg(short, long)]
-        path: PathBuf,
+        path: Option<PathBuf>,
     },
     Search {
         #[arg(short, long)]
         terms: String,
-        #[arg(short, long, default_value_t = String::from("/tmp/index.json"))]
-        index_path: String,
+        #[arg(short, long)]
+        index_path: Option<PathBuf>,
     },
 }
 
 fn handle_command(args: Args) -> anyhow::Result<()> {
-    if let Some(command) = args.command {
+    if let Some(command) = args.clone().command {
         match command {
             Command::Index { path } => {
                 println!("Indexing RFCs");
@@ -47,11 +47,13 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 index.finish();
                 println!("Building index took {:?}", building_index_start.elapsed());
                 let saving_start = Instant::now();
-                index.save(path.to_str().unwrap_or("/tmp/index.json"));
+                let index_path = tf_idf::get_index_path(path);
+                index.save(&index_path);
                 println!("Saving index took {:?}", saving_start.elapsed());
             }
             Command::Search { terms, index_path } => {
                 let start = Instant::now();
+                let index_path = tf_idf::get_index_path(index_path);
                 let file = File::open(index_path)?;
                 let index: Index = simd_json::from_reader(file)?;
                 println!("Opening index file took: {:?}", start.elapsed());

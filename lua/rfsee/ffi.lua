@@ -1,22 +1,27 @@
 local ffi = require("ffi")
 
 ffi.cdef([[
-typedef struct TermFrequencies* TermFrequenciesHandle;
-typedef struct TfIdf* TfIdfHandle;
 
-TermFrequenciesHandle tf_create();
-void tf_insert_term(TermFrequenciesHandle, const char*, float);
-// TermFrequenciesHandle extract_tf(const char*);
+struct RfcSearchResult {
+    const char* url;
+    const char* title;
+};
 
-TfIdfHandle tf_idf_create();
-void tf_idf_add_doc(TfIdfHandle, const char*, const char*);
-void tf_idf_insert_doc_tfs(TfIdfHandle, const char*, TermFrequenciesHandle);
-void tf_idf_finish(TfIdfHandle);
-void tf_idf_save(TfIdfHandle, const char*);
+struct RfcSearchResults {
+    int len;
+    const struct RfcSearchResult* rfcs;
+    int error;
+};
 
+// The function returning a pointer to RfcSearchResults
+struct RfcSearchResults* search_terms(const char* terms);
 
 ]])
 
-local lib = ffi.load("/Users/matth/projects/rfsee/crates/ffi/target/release/libffi.dylib")
+local script_dir = vim.fn.expand("<sfile>:p:h:h")
+local dylib = script_dir .. "/crates/ffi/target/release/libffi.dylib"
+
+local lib = ffi.load(dylib)
+-- local lib = ffi.load("/Users/matth/projects/rfsee/crates/ffi/target/release/libffi.dylib")
 
 return lib

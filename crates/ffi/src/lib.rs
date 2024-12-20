@@ -1,194 +1,125 @@
-use std::ffi::*;
 use std::os::raw::c_char;
-use tf_idf::{TermFreqs, TfIdf};
+use std::{ffi::*, fs::File};
+use tf_idf::Index;
 
 #[no_mangle]
-pub extern "C" fn tf_idf_create() -> *mut TfIdf {
-    let index = api::TfIdf::default();
-    let boxed = Box::new(index);
-    Box::into_raw(boxed)
+pub extern "C" fn build_index() {
+    let mut index = tf_idf::TfIdf::default();
+    index.fetch_rfcs().unwrap();
+    index.finish();
 }
 
-/// Add a document's term frequencies to the index
-///
-/// # Safety
-#[no_mangle]
-pub unsafe extern "C" fn tf_idf_insert_doc_tfs(
-    tf_idf: *mut TfIdf,
-    doc: *const c_char,
-    term_freqs: *mut TermFreqs,
-) {
-    if term_freqs.is_null() || doc.is_null() {
-        return;
-    }
-    let tf_idf = unsafe { &mut *tf_idf };
-    let key = unsafe { CStr::from_ptr(doc) };
-    match key.to_str() {
-        Ok(k) => {
-            let term_freqs = Box::from_raw(term_freqs);
-            tf_idf.doc_tfs.insert(k.to_owned(), *term_freqs);
-        }
-        Err(_) => {
-            // eprintln!("ERROR: Unable to convert key to UTF-8")
-        }
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn tf_idf_add_doc(
-    tf_idf: *mut TfIdf,
+#[repr(C)]
+pub struct RfcSearchResult {
     url: *const c_char,
-    doc: *const c_char,
-) {
-    if url.is_null() || doc.is_null() {}
+    title: *const c_char,
+}
 
-    let tf_idf = unsafe { &mut *tf_idf };
-    let url = unsafe { CStr::from_ptr(url) };
-    let doc = unsafe { CStr::from_ptr(doc) };
+#[repr(C)]
+pub struct RfcSearchResults {
+    len: i32,
+    rfcs: *const RfcSearchResult,
+    error: i32,
+}
 
-    match (url.to_str(), doc.to_str()) {
-        (Ok(u), Ok(d)) => tf_idf.add_doc(u, d),
-        _ => {
-            // eprintln!("ERROR: Unable to convert doc or url to utf-8");
-        }
+/// A private struct to hold all data so it won't drop prematurely.
+#[allow(dead_code)]
+struct RfcSearchResultsContainer {
+    results: RfcSearchResults,
+    // Keep RFC results in a Box<[RfcSearchResult]> so they don't move.
+    rfc_array: Box<[RfcSearchResult]>,
+    // Keep CStrings so their pointers remain valid.
+    cstrings: Vec<CString>,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchResults {
+    if terms.is_null() {
+        return make_error_results();
     }
-}
 
-#[no_mangle]
-pub unsafe extern "C" fn tf_idf_finish(tf_idf: *mut TfIdf) -> *mut TfIdf {
-    if tf_idf.is_null() {}
-    let tf_idf = unsafe { &mut *tf_idf };
-    tf_idf.finish();
-    tf_idf
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn tf_idf_save(tf_idf: *mut TfIdf, path: *const c_char) {
-    if tf_idf.is_null() {}
-    let tf_idf = unsafe { &mut *tf_idf };
-    let path = unsafe { CStr::from_ptr(path) };
-    match path.to_str() {
-        Ok(p) => {
-            tf_idf.save(p);
-        }
-        Err(e) => {
-            // eprintln!("Error converting path to utf8")
-        }
-    }
-}
-
-// #[no_mangle]
-// pub unsafe extern "C" fn extract_tf(doc: *const c_char) -> *mut TermFreqs {
-//     if doc.is_null() {}
-//
-//     let doc = unsafe { CStr::from_ptr(doc) };
-//
-//     match doc.to_str() {
-//         Ok(d) => {
-//             let tf = api::extract_tf(d);
-//             let boxed = Box::new(tf);
-//             Box::into_raw(boxed)
-//         }
-//         Err(e) => {
-//             eprintln!("ERROR: Error converting doc to utf-8");
-//             std::ptr::null()
-//         }
-//     }
-// }
-
-#[no_mangle]
-pub extern "C" fn tf_create() -> *mut TermFreqs {
-    let map: TermFreqs = TermFreqs::new();
-    let boxed = Box::new(map);
-    Box::into_raw(boxed)
-}
-
-/// ChatGPT created the safety docs
-/// Inserts a key-value pair into the `TermFrequencies` map.
-///
-/// # Safety
-/// - `term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by Rust.
-/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably elsewhere during this call.
-/// - `key` must be a valid, non-null pointer to a null-terminated C string. The string must remain valid
-///   for the duration of this function call.
-/// - The function will return immediately if `term_freqs` or `key` is null.
-/// - Undefined behavior may occur if the requirements above are not met.
-#[no_mangle]
-pub unsafe extern "C" fn tf_insert_term(
-    term_freqs: *mut TermFreqs,
-    term: *const c_char,
-    value: f64,
-) {
-    if term_freqs.is_null() || term.is_null() {
-        return;
-    }
-    let term_freqs = unsafe { &mut *term_freqs };
-    let key = unsafe { CStr::from_ptr(term) };
-    match key.to_str() {
-        Ok(k) => {
-            term_freqs.insert(k.to_owned(), value);
-        }
+    let index_path = tf_idf::get_index_path(None);
+    let file = match File::open(index_path) {
+        Ok(f) => f,
         Err(_) => {
-            eprintln!("ERROR: Unable to convert key to UTF-8")
+            return make_error_results();
         }
+    };
+
+    let index: Index = match simd_json::from_reader(file) {
+        Ok(i) => i,
+        Err(_) => return make_error_results(),
+    };
+
+    let c_str = unsafe { CStr::from_ptr(terms) };
+    let query = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => return make_error_results(),
+    };
+
+    let search_results = tf_idf::compute_search_scores(query.to_string(), index);
+
+    let mut cstrings = Vec::new();
+    let mut rfc_results = Vec::with_capacity(search_results.len());
+
+    for result in search_results {
+        let c_url = match CString::new(result.url) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let c_title = match CString::new(result.title) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        // Push these into cstrings so they're never dropped prematurely
+        cstrings.push(c_url);
+        cstrings.push(c_title);
+
+        let url_ptr = cstrings[cstrings.len() - 2].as_ptr();
+        let title_ptr = cstrings[cstrings.len() - 1].as_ptr();
+
+        rfc_results.push(RfcSearchResult {
+            url: url_ptr,
+            title: title_ptr,
+        });
     }
-}
 
-/// ChatGPT created the safety docs
-/// Retrieves a value from the `TermFrequencies` map by key.
-///
-/// # Safety
-/// - `term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by Rust.
-/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably elsewhere during this call.
-/// - `key` must be a valid, non-null pointer to a null-terminated C string. The string must remain valid
-///   for the duration of this function call.
-/// - The function will return a null pointer if:
-///   - `term_freqs` or `key` is null.
-///   - The key does not exist in the map.
-/// - The returned pointer is valid only as long as `term_freqs` remains valid and is not modified.
-/// - Undefined behavior may occur if the requirements above are not met.
-#[no_mangle]
-pub unsafe extern "C" fn get_term_freqs(
-    term_freqs: *const TermFreqs,
-    key: *const c_char,
-) -> *const f64 {
-    if term_freqs.is_null() || key.is_null() {
-        // TODO: Maybe return an int that represents error types instead?
-        return std::ptr::null();
-    }
+    let rfc_array = rfc_results.into_boxed_slice();
+    let len = rfc_array.len() as i32;
 
-    let term_freqs = unsafe { &*term_freqs };
-    let key = unsafe { CStr::from_ptr(key) };
-
-    // Make sure the key is UTF-8
-    match key.to_str() {
-        Ok(k) => match term_freqs.get(k) {
-            Some(v) => v,
-            None => std::ptr::null(),
+    let my_ffi = RfcSearchResultsContainer {
+        results: RfcSearchResults {
+            len,
+            rfcs: rfc_array.as_ptr(),
+            error: 0,
         },
-        Err(_) => std::ptr::null(),
-    }
+        rfc_array,
+        cstrings,
+    };
+
+    let boxed = Box::new(my_ffi);
+    let ptr = &boxed.results as *const RfcSearchResults as *mut RfcSearchResults;
+
+    // Leak the Box, passing ownership to the caller
+    std::mem::forget(boxed);
+
+    ptr
 }
 
-/// Frees the term frequencies from memory
-///
-/// # Safety
-/// -`term_freqs` must be a valid, non-null pointer to a `TermFrequencies` instance created by
-/// Rust.
-/// - The caller must ensure that `term_freqs` is not being accessed concurrently or mutably
-///     elsewhere during this call
-#[no_mangle]
-pub unsafe extern "C" fn free_term_freqs(term_freqs: *mut TermFreqs) {
-    if !term_freqs.is_null() {
-        drop(Box::from_raw(term_freqs));
-    }
-}
+fn make_error_results() -> *mut RfcSearchResults {
+    let my_ffi = RfcSearchResultsContainer {
+        results: RfcSearchResults {
+            len: 0,
+            rfcs: std::ptr::null(),
+            error: 1,
+        },
+        rfc_array: Box::new([]),
+        cstrings: Vec::new(),
+    };
 
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn it_works() {
-        assert_eq!(1, 1);
-    }
+    let boxed = Box::new(my_ffi);
+    let ptr = &boxed.results as *const RfcSearchResults as *mut RfcSearchResults;
+    std::mem::forget(boxed);
+    ptr
 }
