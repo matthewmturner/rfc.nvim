@@ -49,3 +49,5 @@ rfsee search --terms MY_SEARCH_TERMS
 ```vim
 :RFC MY_SEARCH_TERMS
 ```
+
+The above will open a new buffer with the results from your search.  You can navigate up and down and then press `<Enter>` on a line to open that RFC in your browser.  In the future this will open the selected RFC in NeoVim.
