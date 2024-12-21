@@ -9,12 +9,21 @@ use serde::{Deserialize, Serialize};
 
 /// A term in a document
 pub type Term = String;
-/// The source of the document
+/// The url of the source document
 pub type Url = String;
-/// Term frequency, tf(t,d), is the relative frequency of term t within document d.
+/// Term frequency, tf(t,d), is the relative frequency of term t within document d.  Keys are the
+/// terms and values are the frequency of the term
 pub type TermFreqs = HashMap<Term, f32>;
+/// Mapping from a Url to the term frequencies for the document at that url.
 pub type DocTermFreqs = HashMap<Url, TermFreqs>;
+/// For each term its inverse document frequency which is computed as:
+///
+/// log(total_docs / (docs_with_term + ε))
+///
+/// ε used so that terms which are in all documents, such as "HTTP", can still have their term
+/// frequency apply.  Without this the final score would be 0 as the IDF would be 0.
 pub type InvDocFreqs = HashMap<Term, f32>;
+/// Map of terms to a vector of documents that have that term
 pub type DocsWithTerm = HashMap<Term, Vec<Url>>;
 pub type ProcessedRfcs = HashMap<Url, ProcessedRfc>;
 pub type RfcNumber = i32;
@@ -29,6 +38,7 @@ const RFC_EDITOR_FILE_TYPE: &str = "txt";
 const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
 const EPSILON: f32 = 0.0001;
+/// How to split the user provided search
 const SEARCH_TERMS_DELIMITER: &str = " ";
 
 const INDEX_FILE_NAME: &str = "index.json";
@@ -108,7 +118,7 @@ pub fn parse_rfcs_index(content: String) -> anyhow::Result<Vec<RfcEntry>> {
                     rfcs.push(RfcEntry {
                         number: parsed_num,
                         url: url.clone(),
-                        title: title.to_string(),
+                        title: title.replace("\n     ", " ").to_string(),
                         content,
                     })
                 }

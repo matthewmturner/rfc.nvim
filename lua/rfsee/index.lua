@@ -1,9 +1,9 @@
-local lib = require("rfsee.ffi")
-local ffi = require("ffi")
+local lib      = require("rfsee.ffi")
+local ffi      = require("ffi")
 
-local M = {}
+local M        = {}
 
-RFC_INDEX_URL = "https://www.ietf.org/rfc/rfc-index.txt"
+RFC_INDEX_URL  = "https://www.ietf.org/rfc/rfc-index.txt"
 RFC_DELIMITTER = "\n\n"
 
 function M.search_terms(terms)
