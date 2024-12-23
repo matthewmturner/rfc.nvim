@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 regex = "1.11.1"
 fetch = { path = "../fetch" }
+threadpool = { path = "../threadpool" }
 simd-json = "0.14.3"
 anyhow = "1.0.94"
 serde = "1.0.216"

@@ -2,13 +2,6 @@ use std::os::raw::c_char;
 use std::{ffi::*, fs::File};
 use tf_idf::Index;
 
-#[no_mangle]
-pub extern "C" fn build_index() {
-    let mut index = tf_idf::TfIdf::default();
-    index.fetch_rfcs().unwrap();
-    index.finish();
-}
-
 #[repr(C)]
 pub struct RfcSearchResult {
     url: *const c_char,
@@ -30,6 +23,13 @@ struct RfcSearchResultsContainer {
     rfc_array: Box<[RfcSearchResult]>,
     // Keep CStrings so their pointers remain valid.
     cstrings: Vec<CString>,
+}
+
+#[no_mangle]
+pub extern "C" fn build_index() {
+    let mut index = tf_idf::TfIdf::default();
+    index.load_rfcs().unwrap();
+    index.finish();
 }
 
 #[no_mangle]

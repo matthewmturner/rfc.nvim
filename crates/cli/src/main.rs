@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use tf_idf::{compute_search_scores, fetch_rfcs, Index, TfIdf};
+use tf_idf::{compute_search_scores, Index, TfIdf};
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about)]
@@ -30,19 +30,10 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
             Command::Index { path } => {
                 println!("Indexing RFCs");
                 let start = Instant::now();
-                let rfcs = fetch_rfcs()?;
-                println!("Fetching RFCs took {:?}", start.elapsed());
-                let processing_start = Instant::now();
                 let mut index = TfIdf::default();
-                for rfc in rfcs.into_iter() {
-                    if rfc.number % 1000 == 0 {
-                        println!("Processing RFC {}", rfc.number);
-                    }
-                    if rfc.content.is_some() {
-                        index.add_rfc_entry(rfc);
-                    }
-                }
-                println!("Processing RFCs took {:?}", processing_start.elapsed());
+                index.par_load_rfcs()?;
+                // index.load_rfcs()?;
+                println!("Loading RFCs took {:?}", start.elapsed());
                 let building_index_start = Instant::now();
                 index.finish();
                 println!("Building index took {:?}", building_index_start.elapsed());

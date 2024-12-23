@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use fetch::fetch;
@@ -44,6 +46,7 @@ const SEARCH_TERMS_DELIMITER: &str = " ";
 const INDEX_FILE_NAME: &str = "index.json";
 const DEFAULT_INDEX_PATH: &str = "/tmp/index.json";
 
+#[derive(Debug)]
 pub struct RfcEntry {
     pub number: i32,
     pub url: String,
@@ -91,10 +94,54 @@ pub fn get_index_path(custom_path: Option<PathBuf>) -> PathBuf {
     }
 }
 
+fn fetch_rfc_index() -> anyhow::Result<String> {
+    let rfc_index_content = fetch(RFC_INDEX_URL)?;
+    Ok(rfc_index_content)
+}
+
+fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
+    let found = content.find("0001");
+    match found {
+        Some(idx) => {
+            let raw_rfcs = &content[idx..];
+            let splitted = raw_rfcs.split(RFC_DELIMITER).collect();
+            Ok(splitted)
+        }
+        None => anyhow::bail!("Unable to parse RFC index"),
+    }
+}
+
+fn parse_rfc(rfc_content: &str) -> anyhow::Result<(i32, &str)> {
+    if let Some((rfc_num, title)) = rfc_content.split_once(" ") {
+        let parsed_num: i32 = rfc_num.parse()?;
+        Ok((parsed_num, title))
+    } else {
+        anyhow::bail!("Unable to parse RFC number {rfc_content}");
+    }
+}
+
 pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
     let rfc_index_content = fetch(RFC_INDEX_URL)?;
     let rfcs = parse_rfcs_index(rfc_index_content)?;
     Ok(rfcs)
+}
+
+fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
+    if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
+        let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
+        if let Ok(content) = fetch(&url) {
+            Ok(RfcEntry {
+                number: rfc_num,
+                url: url.clone(),
+                title: title.replace("\n     ", " ").to_string(),
+                content: Some(content),
+            })
+        } else {
+            anyhow::bail!("Unable to fetch RFC")
+        }
+    } else {
+        anyhow::bail!("Unable to parse raw RFC")
+    }
 }
 
 pub fn parse_rfcs_index(content: String) -> anyhow::Result<Vec<RfcEntry>> {
@@ -146,13 +193,134 @@ pub struct TfIdf {
 }
 
 impl TfIdf {
-    pub fn fetch_rfcs(&mut self) -> anyhow::Result<()> {
-        let rfcs = fetch_rfcs()?;
-        for rfc in rfcs {
-            if rfc.content.is_some() {
-                self.add_rfc_entry(rfc);
+    pub fn load_rfcs(&mut self) -> anyhow::Result<()> {
+        let raw_rfc_index = fetch_rfc_index()?;
+        let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
+        for (i, raw_rfc) in raw_rfcs.into_iter().enumerate() {
+            if i % 1000 == 0 {
+                eprintln!("Processing RFC #{i}");
+            }
+            let (rfc_num, title) = parse_rfc(raw_rfc)?;
+            let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
+            let maybe_parsed_rfc = match fetch(&url) {
+                Ok(content) => Some(RfcEntry {
+                    number: rfc_num,
+                    url: url.clone(),
+                    title: title.replace("\n     ", " ").to_string(),
+                    content: Some(content),
+                }),
+                Err(_) => None,
+            };
+            if let Some(parsed_rfc) = maybe_parsed_rfc {
+                if parsed_rfc.content.is_some() {
+                    self.add_rfc_entry(parsed_rfc)
+                }
             }
         }
+
+        Ok(())
+    }
+
+    pub fn par_load_rfcs(&mut self) -> anyhow::Result<()> {
+        let start = std::time::Instant::now();
+        let pool = threadpool::ThreadPool::new(12);
+        let raw_rfc_index = fetch_rfc_index()?;
+        let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
+
+        let parsed_rfcs: Vec<RfcEntry> = Vec::new();
+        let parsed_rfcs = Arc::new(Mutex::new(parsed_rfcs));
+
+        let remaining = raw_rfcs.len();
+        let remaining = Arc::new(Mutex::new(remaining));
+
+        for rfc in raw_rfcs.into_iter() {
+            let string = rfc.to_string();
+            let remaining = Arc::clone(&remaining);
+            let parsed_rfcs = Arc::clone(&parsed_rfcs);
+            pool.execute(move || {
+                if let Ok(r) = fetch_rfc(&string) {
+                    let mut guard = parsed_rfcs.lock().unwrap();
+                    guard.push(r);
+                };
+                let mut guard = remaining.lock().unwrap();
+                *guard -= 1;
+            })
+        }
+
+        let mut finished = false;
+        while !finished {
+            let remaining = remaining.clone();
+            println!("Remaining: {remaining:?}");
+            let guard = remaining.lock().unwrap();
+            if *guard == 0 {
+                finished = true
+            } else {
+                drop(guard);
+                std::thread::sleep(Duration::from_secs(5));
+            }
+        }
+
+        match Arc::try_unwrap(parsed_rfcs) {
+            Ok(mutex) => match mutex.into_inner() {
+                Ok(rfcs) => {
+                    for rfc in rfcs {
+                        self.add_rfc_entry(rfc);
+                    }
+                }
+                Err(_) => {
+                    println!("Poison error for getting RFCs to process")
+                }
+            },
+            Err(_) => {
+                println!("More than one reference remaining")
+            }
+        }
+
+        println!("Fetch RFCs took {:?}", start.elapsed());
+        // raw_rfcs
+        //     .into_iter()
+        //     .for_each(|raw_rfc| pool.execute(|| create_job(raw_rfc)));
+        // let fetch_jobs = raw_rfcs.into_iter().map(|raw_rfc| create_job);
+        //
+        // for job in fetch_jobs {
+        //     pool.execute(|| job());
+        // }
+        // let (rfc_num, title) = parse_rfc(raw_rfc);
+        // if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
+        //     let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
+        //     if let Ok(content) = fetch(&url) {
+        //         let entry = RfcEntry {
+        //             number: rfc_num,
+        //             url: url.clone(),
+        //             title: title.replace("\n     ", " ").to_string(),
+        //             content: Some(content),
+        //         };
+        //         let mut guard = parsed_rfcs.lock().unwrap();
+        //         guard.push(entry);
+        //     };
+        // }
+        // });
+        // for (i, raw_rfc) in raw_rfcs.into_iter().enumerate() {
+        //     if i % 1000 == 0 {
+        //         eprintln!("Processing RFC #{i}");
+        //     }
+        //     let (rfc_num, title) = parse_rfc(raw_rfc)?;
+        //     let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
+        //     let maybe_parsed_rfc = match fetch(&url) {
+        //         Ok(content) => Some(RfcEntry {
+        //             number: rfc_num,
+        //             url: url.clone(),
+        //             title: title.replace("\n     ", " ").to_string(),
+        //             content: Some(content),
+        //         }),
+        //         Err(_) => None,
+        //     };
+        //     if let Some(parsed_rfc) = maybe_parsed_rfc {
+        //         if parsed_rfc.content.is_some() {
+        //             self.add_rfc_entry(parsed_rfc)
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
