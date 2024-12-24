@@ -30,6 +30,12 @@ After installing, you can run the following to create the index.
 rfsee index
 ```
 
+Then, to execute a query its as simple as 
+
+```bash
+rfsee search --terms MY_SEARCH_TERMS
+```
+
 ### NeoVim
 
 ```vim
@@ -37,14 +43,6 @@ rfsee index
 ```
 
 Then, to execute a query its as simple as 
-
-### Terminal
-
-```bash
-rfsee search --terms MY_SEARCH_TERMS
-```
-
-### NeoVim
 
 ```vim
 :RFC MY_SEARCH_TERMS
