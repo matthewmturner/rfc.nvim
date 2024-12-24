@@ -32,7 +32,6 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 let start = Instant::now();
                 let mut index = TfIdf::default();
                 index.par_load_rfcs()?;
-                // index.load_rfcs()?;
                 println!("Loading RFCs took {:?}", start.elapsed());
                 let building_index_start = Instant::now();
                 index.finish();
