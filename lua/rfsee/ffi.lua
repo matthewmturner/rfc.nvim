@@ -18,9 +18,8 @@ struct RfcSearchResults* search_terms(const char* terms);
 ]])
 
 local script_dir = vim.fn.expand("<sfile>:p:h:h")
-local dylib = script_dir .. "/crates/ffi/target/release/libffi.dylib"
+local dylib = script_dir .. "/artifacts/libffi.dylib"
 
 local lib = ffi.load(dylib)
--- local lib = ffi.load("/Users/matth/projects/rfsee/crates/ffi/target/release/libffi.dylib")
 
 return lib

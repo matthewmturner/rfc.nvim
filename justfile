@@ -8,4 +8,5 @@ install: install-targets install-dependencies
     echo "Finished installation"
 
 build-artifacts:
-    cross build --release --target aarch64-unknown-linux-gnu --manifest-path crates/ffi/Cargo.toml
+    cargo build --release --manifest-path crates/ffi/Cargo.toml --target aarch64-apple-darwin
+    cp crates/ffi/target/release/libffi.dylib artifacts/
