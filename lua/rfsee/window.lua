@@ -20,6 +20,7 @@ end
 
 function M.update_progress_window(buf, message)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { message })
+    vim.cmd("redraw")
 end
 
 function M.close_progress_window(win)

@@ -1,4 +1,5 @@
 local lib      = require("rfsee.ffi")
+local window   = require("rfsee.window")
 local ffi      = require("ffi")
 
 local M        = {}
@@ -53,7 +54,14 @@ function M.search_terms(terms)
 end
 
 function M.refresh()
+    local start_time = os.clock()
+    local buf, win = window.create_progress_window()
+    window.update_progress_window(buf, "Building RFC index")
     lib.build_index()
+    local end_time = os.clock()
+    window.update_progress_window(buf, string.format("Built RFC index in %.2f seconds", end_time - start_time))
+    os.execute("sleep 30")
+    window.close_progress_window(win)
 end
 
 return M

@@ -222,7 +222,6 @@ impl TfIdf {
     }
 
     pub fn par_load_rfcs(&mut self) -> anyhow::Result<()> {
-        let start = std::time::Instant::now();
         let pool = threadpool::ThreadPool::new(12);
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
@@ -250,7 +249,6 @@ impl TfIdf {
         let mut finished = false;
         while !finished {
             let remaining = remaining.clone();
-            println!("Remaining: {remaining:?}");
             let guard = remaining.lock().unwrap();
             if *guard == 0 {
                 finished = true
@@ -267,60 +265,12 @@ impl TfIdf {
                         self.add_rfc_entry(rfc);
                     }
                 }
-                Err(_) => {
-                    println!("Poison error for getting RFCs to process")
-                }
+                Err(err) => anyhow::bail!(err),
             },
             Err(_) => {
-                println!("More than one reference remaining")
+                anyhow::bail!("More than one reference remaining")
             }
         }
-
-        println!("Fetch RFCs took {:?}", start.elapsed());
-        // raw_rfcs
-        //     .into_iter()
-        //     .for_each(|raw_rfc| pool.execute(|| create_job(raw_rfc)));
-        // let fetch_jobs = raw_rfcs.into_iter().map(|raw_rfc| create_job);
-        //
-        // for job in fetch_jobs {
-        //     pool.execute(|| job());
-        // }
-        // let (rfc_num, title) = parse_rfc(raw_rfc);
-        // if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
-        //     let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
-        //     if let Ok(content) = fetch(&url) {
-        //         let entry = RfcEntry {
-        //             number: rfc_num,
-        //             url: url.clone(),
-        //             title: title.replace("\n     ", " ").to_string(),
-        //             content: Some(content),
-        //         };
-        //         let mut guard = parsed_rfcs.lock().unwrap();
-        //         guard.push(entry);
-        //     };
-        // }
-        // });
-        // for (i, raw_rfc) in raw_rfcs.into_iter().enumerate() {
-        //     if i % 1000 == 0 {
-        //         eprintln!("Processing RFC #{i}");
-        //     }
-        //     let (rfc_num, title) = parse_rfc(raw_rfc)?;
-        //     let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
-        //     let maybe_parsed_rfc = match fetch(&url) {
-        //         Ok(content) => Some(RfcEntry {
-        //             number: rfc_num,
-        //             url: url.clone(),
-        //             title: title.replace("\n     ", " ").to_string(),
-        //             content: Some(content),
-        //         }),
-        //         Err(_) => None,
-        //     };
-        //     if let Some(parsed_rfc) = maybe_parsed_rfc {
-        //         if parsed_rfc.content.is_some() {
-        //             self.add_rfc_entry(parsed_rfc)
-        //         }
-        //     }
-        // }
 
         Ok(())
     }

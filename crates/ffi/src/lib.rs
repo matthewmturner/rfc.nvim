@@ -28,7 +28,7 @@ struct RfcSearchResultsContainer {
 #[no_mangle]
 pub extern "C" fn build_index() {
     let mut index = tf_idf::TfIdf::default();
-    index.load_rfcs().unwrap();
+    index.par_load_rfcs().unwrap();
     index.finish();
 }
 
