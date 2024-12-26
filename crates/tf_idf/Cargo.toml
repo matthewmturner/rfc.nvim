@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Matthew Turner"]
 repository = "https://github.com/matthewmturner/rfsee"
+description = "TF-IDF implementation for rfsee"
 license = "MIT"
 keywords = ["tf-idf"]
 
