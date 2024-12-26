@@ -412,11 +412,3 @@ pub fn compute_search_scores(search: String, index: Index) -> Vec<RfcSearchResul
         })
         .collect()
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(1, 1);
-    }
-}
