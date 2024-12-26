@@ -164,9 +164,9 @@ dependencies = [
  "anyhow",
  "clap",
  "directories",
+ "rfsee-tf-idf",
  "serde_json",
  "simd-json",
- "tf_idf",
 ]
 
 [[package]]
@@ -229,21 +229,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
-name = "fetch"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "native-tls",
-]
-
-[[package]]
 name = "ffi"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "rfsee-tf-idf",
  "simd-json",
- "tf_idf",
 ]
 
 [[package]]
@@ -532,6 +523,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
+name = "rfsee-fetch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "native-tls",
+]
+
+[[package]]
+name = "rfsee-tf-idf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "directories",
+ "regex",
+ "rfsee-fetch",
+ "rfsee-threadpool",
+ "serde",
+ "simd-json",
+]
+
+[[package]]
+name = "rfsee-threadpool"
+version = "0.1.0"
+
+[[package]]
 name = "rustix"
 version = "0.38.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -672,19 +688,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tf_idf"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "directories",
- "fetch",
- "regex",
- "serde",
- "simd-json",
- "threadpool",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -703,10 +706,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "threadpool"
-version = "0.1.0"
 
 [[package]]
 name = "unicode-ident"

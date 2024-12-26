@@ -1,6 +1,6 @@
+use rfsee_tf_idf::Index;
 use std::os::raw::c_char;
 use std::{ffi::*, fs::File};
-use tf_idf::Index;
 
 #[repr(C)]
 pub struct RfcSearchResult {
@@ -27,7 +27,7 @@ struct RfcSearchResultsContainer {
 
 #[no_mangle]
 pub extern "C" fn build_index() {
-    let mut index = tf_idf::TfIdf::default();
+    let mut index = rfsee_tf_idf::TfIdf::default();
     index.par_load_rfcs().unwrap();
     index.finish();
 }
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
         return make_error_results();
     }
 
-    let index_path = tf_idf::get_index_path(None);
+    let index_path = rfsee_tf_idf::get_index_path(None);
     let file = match File::open(index_path) {
         Ok(f) => f,
         Err(_) => {
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
         Err(_) => return make_error_results(),
     };
 
-    let search_results = tf_idf::compute_search_scores(query.to_string(), index);
+    let search_results = rfsee_tf_idf::compute_search_scores(query.to_string(), index);
 
     let mut cstrings = Vec::new();
     let mut rfc_results = Vec::with_capacity(search_results.len());

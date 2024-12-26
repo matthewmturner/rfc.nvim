@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use tf_idf::{compute_search_scores, Index, TfIdf};
+use rfsee_tf_idf::{compute_search_scores, get_index_path, Index, TfIdf};
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about)]
@@ -37,13 +37,13 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 index.finish();
                 println!("Building index took {:?}", building_index_start.elapsed());
                 let saving_start = Instant::now();
-                let index_path = tf_idf::get_index_path(path);
+                let index_path = get_index_path(path);
                 index.save(&index_path);
                 println!("Saving index took {:?}", saving_start.elapsed());
             }
             Command::Search { terms, index_path } => {
                 let start = Instant::now();
-                let index_path = tf_idf::get_index_path(index_path);
+                let index_path = get_index_path(index_path);
                 let file = File::open(index_path)?;
                 let index: Index = simd_json::from_reader(file)?;
                 println!("Opening index file took: {:?}", start.elapsed());

@@ -1,6 +1,9 @@
 [package]
-name = "threadpool"
+name = "rfsee-threadpool"
 version = "0.1.0"
 edition = "2021"
+authors = ["Matthew Turner"]
+repository = "https://github.com/matthewmturner/rfsee"
+license = "MIT"
 
 [dependencies]

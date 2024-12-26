@@ -7,6 +7,6 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-tf_idf = { path = "../tf_idf" }
+rfsee-tf-idf = { path = "../tf_idf", version = "0.1" }
 libc = "0.2.167"
 simd-json = "0.14.3"

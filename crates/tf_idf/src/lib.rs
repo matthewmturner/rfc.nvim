@@ -5,8 +5,8 @@ use std::{
     time::Duration,
 };
 
-use fetch::fetch;
 use regex::Regex;
+use rfsee_fetch::fetch;
 use serde::{Deserialize, Serialize};
 
 /// A term in a document
@@ -94,11 +94,14 @@ pub fn get_index_path(custom_path: Option<PathBuf>) -> PathBuf {
     }
 }
 
+/// Return the raw `String` contents of IETF RFC index
 fn fetch_rfc_index() -> anyhow::Result<String> {
     let rfc_index_content = fetch(RFC_INDEX_URL)?;
     Ok(rfc_index_content)
 }
 
+/// Parse raw `String` contents of RFC index and return `Vec` of `&str` for each item after
+/// splitting on `RFC_DELIMITER`
 fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
     let found = content.find("0001");
     match found {
@@ -111,6 +114,7 @@ fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
     }
 }
 
+/// Parse raw RFC `String` contents into the RFC number and its title
 fn parse_rfc(rfc_content: &str) -> anyhow::Result<(i32, &str)> {
     if let Some((rfc_num, title)) = rfc_content.split_once(" ") {
         let parsed_num: i32 = rfc_num.parse()?;
@@ -221,8 +225,9 @@ impl TfIdf {
         Ok(())
     }
 
+    /// Load the RFCs in parallel using a threadpool
     pub fn par_load_rfcs(&mut self) -> anyhow::Result<()> {
-        let pool = threadpool::ThreadPool::new(12);
+        let pool = rfsee_threadpool::ThreadPool::new(12);
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
 
@@ -275,6 +280,7 @@ impl TfIdf {
         Ok(())
     }
 
+    /// Process `RfcEntry` by computing it's term frequencies and add it to index
     pub fn add_rfc_entry(&mut self, rfc: RfcEntry) {
         let re = Regex::new(WORD_MATCH_REGEX).unwrap();
 
@@ -310,6 +316,8 @@ impl TfIdf {
         }
     }
 
+    /// Take all the processed documents and their term frequencies to compute the final term
+    /// scores
     pub fn finish(&mut self) {
         // First, we collect all terms and the number of docs they appear in
         let mut term_counts: HashMap<&String, usize> = HashMap::new();

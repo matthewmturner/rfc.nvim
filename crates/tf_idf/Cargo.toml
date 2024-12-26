@@ -1,12 +1,16 @@
 [package]
-name = "tf_idf"
+name = "rfsee-tf-idf"
 version = "0.1.0"
 edition = "2021"
+authors = ["Matthew Turner"]
+repository = "https://github.com/matthewmturner/rfsee"
+license = "MIT"
+keywords = ["tf-idf"]
 
 [dependencies]
 regex = "1.11.1"
-fetch = { path = "../fetch" }
-threadpool = { path = "../threadpool" }
+rfsee-fetch = { path = "../fetch", version = "0.1" }
+rfsee-threadpool = { path = "../threadpool", version = "0.1" }
 simd-json = "0.14.3"
 anyhow = "1.0.94"
 serde = "1.0.216"
