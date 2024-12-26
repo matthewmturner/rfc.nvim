@@ -2,8 +2,6 @@
 resolver = "2"
 members = [
     "crates/cli",
-    "crates/fetch",
     "crates/ffi",
     "crates/tf_idf",
-    "crates/threadpool"
 ]

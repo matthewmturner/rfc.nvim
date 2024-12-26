@@ -9,9 +9,8 @@ keywords = ["tf-idf"]
 
 [dependencies]
 regex = "1.11.1"
-rfsee-fetch = { path = "../fetch", version = "0.1" }
-rfsee-threadpool = { path = "../threadpool", version = "0.1" }
 simd-json = "0.14.3"
 anyhow = "1.0.94"
 serde = "1.0.216"
 directories = "5.0.1"
+native-tls = "0.2.12"

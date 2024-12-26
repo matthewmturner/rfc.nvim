@@ -33,7 +33,7 @@ pub fn fetch(url: &str) -> anyhow::Result<String> {
     }
 }
 
-pub fn fetch_urls(_urls: &[&str]) -> anyhow::Result<Vec<String>> {
+fn _fetch_urls(_urls: &[&str]) -> anyhow::Result<Vec<String>> {
     // Use single connection
     todo!()
 }

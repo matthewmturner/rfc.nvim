@@ -12,7 +12,5 @@ build-artifacts:
     cp crates/ffi/target/release/libffi.dylib artifacts/
 
 publish-dry-run:
-    cargo publish -n --manifest-path crates/fetch/Cargo.toml
-    cargo publish -n --manifest-path crates/threadpool/Cargo.toml
     cargo publish -n --manifest-path crates/tf_idf/Cargo.toml
     cargo publish -n --manifest-path crates/cli/Cargo.toml
