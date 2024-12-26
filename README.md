@@ -49,3 +49,7 @@ Then, to execute a query its as simple as
 ```
 
 The above will open a new buffer with the results from your search.  You can navigate up and down and then press `<Enter>` on a line to open that RFC in your browser.  In the future this will open the selected RFC in NeoVim.
+
+## Contributing
+
+This is a personal project that I am using to explore and learn to build an application with minimal dependencies - as such I will likely not be accepting outside contributions.  That being said bug reports are always welcome.

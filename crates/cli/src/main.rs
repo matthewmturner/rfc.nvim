@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use rfsee_tf_idf::{compute_search_scores, get_index_path, Index, TfIdf};
+use rfsee_tf_idf::{get_index_path, search_index, Index, TfIdf};
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about)]
@@ -47,7 +47,7 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 let file = File::open(index_path)?;
                 let index: Index = simd_json::from_reader(file)?;
                 println!("Opening index file took: {:?}", start.elapsed());
-                let results = compute_search_scores(terms, index);
+                let results = search_index(terms, index);
                 println!("Total search time: {:?}", start.elapsed());
                 println!("Docs: {results:#?}");
             }

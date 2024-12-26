@@ -15,9 +15,11 @@ pub struct RfcSearchResults {
     error: i32,
 }
 
-/// A private struct to hold all data so it won't drop prematurely.
+/// A private struct to hold both the public results interface and the heap allocated data that
+/// from the results.
 #[allow(dead_code)]
 struct RfcSearchResultsContainer {
+    // This is what is returned
     results: RfcSearchResults,
     // Keep RFC results in a Box<[RfcSearchResult]> so they don't move.
     rfc_array: Box<[RfcSearchResult]>,
@@ -32,8 +34,34 @@ pub extern "C" fn build_index() {
     index.finish();
 }
 
+/// Search for the terms in the TF-IDF index and return the results in order with the highest
+/// scoring document first.
+///
+/// # Errors
+///
+/// This function will return an error if the terms pointer is null, there is no index file, or the
+/// provided terms can not be converted to a CStr.
+///
+/// # Safety
+///
+/// The terms are provided as a C string which are converted to a `CStr` which has the following
+/// safety requirements
+///
+/// The memory pointed to by `ptr` must contain a valid nul terminator at the
+///  end of the string.
+///
+/// * `ptr` must be [valid] for reads of bytes up to and including the nul terminator.
+///     This means in particular:
+///
+/// * The entire memory range of this `CStr` must be contained within a single allocated object!
+/// * `ptr` must be non-null even for a zero-length cstr.
+/// * The memory referenced by the returned `CStr` must not be mutated for
+///     the duration of lifetime `'a`.
+///
+/// * The nul terminator must be within `isize::MAX` from `ptr`
 #[no_mangle]
 pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchResults {
+    // To convert to `CStr` the pointer must be non-null
     if terms.is_null() {
         return make_error_results();
     }
@@ -57,7 +85,7 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
         Err(_) => return make_error_results(),
     };
 
-    let search_results = rfsee_tf_idf::compute_search_scores(query.to_string(), index);
+    let search_results = rfsee_tf_idf::search_index(query.to_string(), index);
 
     let mut cstrings = Vec::new();
     let mut rfc_results = Vec::with_capacity(search_results.len());
@@ -88,7 +116,7 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
     let rfc_array = rfc_results.into_boxed_slice();
     let len = rfc_array.len() as i32;
 
-    let my_ffi = RfcSearchResultsContainer {
+    let container = RfcSearchResultsContainer {
         results: RfcSearchResults {
             len,
             rfcs: rfc_array.as_ptr(),
@@ -98,10 +126,10 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
         cstrings,
     };
 
-    let boxed = Box::new(my_ffi);
+    let boxed = Box::new(container);
     let ptr = &boxed.results as *const RfcSearchResults as *mut RfcSearchResults;
 
-    // Leak the Box, passing ownership to the caller
+    // Leak the container so that the allocations for the results stay around
     std::mem::forget(boxed);
 
     ptr

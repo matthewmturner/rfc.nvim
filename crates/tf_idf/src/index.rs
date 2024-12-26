@@ -370,6 +370,8 @@ impl TfIdf {
     }
 }
 
+/// Combine the result set for each term into a single result set where a document only shows up
+/// once.  Scores are combined by adding them.
 pub fn combine_scores(scores: Vec<HashMap<i32, i32>>) -> Vec<i32> {
     let mut combined_scores: HashMap<i32, i32> = HashMap::new();
     for score in scores {
@@ -391,7 +393,8 @@ pub fn combine_scores(scores: Vec<HashMap<i32, i32>>) -> Vec<i32> {
     scores_list.into_iter().map(|(rfc, _)| rfc).collect()
 }
 
-pub fn compute_search_scores(search: String, index: Index) -> Vec<RfcSearchResult> {
+/// Search the provided index for the terms and return ordered results
+pub fn search_index(search: String, index: Index) -> Vec<RfcSearchResult> {
     // Extract all the terms from the search
     let terms: Vec<&str> = search.split(SEARCH_TERMS_DELIMITER).collect();
 
