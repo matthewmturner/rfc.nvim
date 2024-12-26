@@ -135,6 +135,18 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
     ptr
 }
 
+#[no_mangle]
+pub unsafe fn fetch(terms: *const c_char) -> *const c_char {
+    if terms.is_null() {}
+
+    // match CStr::from_ptr(terms) {
+    //     Ok(url) => {
+    //         let contents = fetch::fetch(url);
+    //     }
+    //     Err(e) => {}
+    // }
+}
+
 fn make_error_results() -> *mut RfcSearchResults {
     let my_ffi = RfcSearchResultsContainer {
         results: RfcSearchResults {

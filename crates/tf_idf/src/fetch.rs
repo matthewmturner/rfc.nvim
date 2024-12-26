@@ -5,6 +5,14 @@ use std::{
 
 use native_tls::TlsConnector;
 
+use crate::{
+    parse::{parse_rfc, parse_rfcs_index},
+    RfcEntry,
+};
+
+const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
+const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
+
 pub fn fetch(url: &str) -> anyhow::Result<String> {
     let parts: Vec<&str> = url.split("://").collect();
     if parts.len() == 2 {
@@ -30,6 +38,36 @@ pub fn fetch(url: &str) -> anyhow::Result<String> {
         Ok(buf)
     } else {
         anyhow::bail!("Invalid url: {url}");
+    }
+}
+
+/// Return the raw `String` contents of IETF RFC index
+pub fn fetch_rfc_index() -> anyhow::Result<String> {
+    let rfc_index_content = fetch(RFC_INDEX_URL)?;
+    Ok(rfc_index_content)
+}
+
+pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
+    let rfc_index_content = fetch(RFC_INDEX_URL)?;
+    let rfcs = parse_rfcs_index(rfc_index_content)?;
+    Ok(rfcs)
+}
+
+pub fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
+    if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
+        let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
+        if let Ok(content) = fetch(&url) {
+            Ok(RfcEntry {
+                number: rfc_num,
+                url: url.clone(),
+                title: title.replace("\n     ", " ").to_string(),
+                content: Some(content),
+            })
+        } else {
+            anyhow::bail!("Unable to fetch RFC")
+        }
+    } else {
+        anyhow::bail!("Unable to parse raw RFC")
     }
 }
 

@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{
-    fetch::fetch,
-    parse::{parse_rfc, parse_rfc_index, parse_rfcs_index},
+    fetch::{fetch, fetch_rfc_index},
+    parse::{parse_rfc, parse_rfc_index},
     threadpool,
 };
 use regex::Regex;
@@ -36,8 +36,6 @@ pub type RfcNumber = i32;
 pub type TermScore = i32;
 pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
-const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
-const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
 const RFC_EDITOR_FILE_TYPE: &str = "txt";
 
 const WORD_MATCH_REGEX: &str = r"(\w+)";
@@ -97,36 +95,6 @@ pub fn get_index_path(custom_path: Option<PathBuf>) -> PathBuf {
     }
 }
 
-/// Return the raw `String` contents of IETF RFC index
-fn fetch_rfc_index() -> anyhow::Result<String> {
-    let rfc_index_content = fetch(RFC_INDEX_URL)?;
-    Ok(rfc_index_content)
-}
-
-pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
-    let rfc_index_content = fetch(RFC_INDEX_URL)?;
-    let rfcs = parse_rfcs_index(rfc_index_content)?;
-    Ok(rfcs)
-}
-
-fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
-    if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
-        let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
-        if let Ok(content) = fetch(&url) {
-            Ok(RfcEntry {
-                number: rfc_num,
-                url: url.clone(),
-                title: title.replace("\n     ", " ").to_string(),
-                content: Some(content),
-            })
-        } else {
-            anyhow::bail!("Unable to fetch RFC")
-        }
-    } else {
-        anyhow::bail!("Unable to parse raw RFC")
-    }
-}
-
 #[repr(C)]
 #[derive(Default)]
 pub struct TfIdf {
@@ -147,10 +115,7 @@ impl TfIdf {
     pub fn load_rfcs(&mut self) -> anyhow::Result<()> {
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
-        for (i, raw_rfc) in raw_rfcs.into_iter().enumerate() {
-            if i % 1000 == 0 {
-                eprintln!("Processing RFC #{i}");
-            }
+        for raw_rfc in raw_rfcs {
             let (rfc_num, title) = parse_rfc(raw_rfc)?;
             let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
             let maybe_parsed_rfc = match fetch(&url) {

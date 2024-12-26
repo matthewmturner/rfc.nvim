@@ -1,6 +1,7 @@
 local lib      = require("rfsee.ffi")
 local window   = require("rfsee.window")
 local ffi      = require("ffi")
+local curl     = require("plenary.curl")
 
 local M        = {}
 
@@ -27,15 +28,15 @@ function M.search_terms(terms)
     end
 
     -- Create a new scratch buffer
-    local buf = vim.api.nvim_create_buf(false, true) -- No file, scratch buffer
-    vim.bo[buf].bufhidden = 'wipe'
-    vim.bo[buf].modifiable = true
+    local results_buf = vim.api.nvim_create_buf(true, true) -- No file, scratch buffer
+    vim.bo[results_buf].bufhidden = 'wipe'
+    vim.bo[results_buf].modifiable = true
 
     -- Set the lines of the buffer
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_buf_set_lines(results_buf, 0, -1, false, lines)
 
     -- Optionally, open the buffer in a new window
-    vim.api.nvim_win_set_buf(0, buf)
+    vim.api.nvim_win_set_buf(0, results_buf)
 
     -- Set a keymap for pressing <CR> on a line to open the URL.
     -- Use a Lua callback for easy parsing.
@@ -43,14 +44,19 @@ function M.search_terms(terms)
         local line = vim.api.nvim_get_current_line()
         -- Assume the format "Title - URL"
         local url = line:match(" %- (.+)$") -- captures everything after " - "
-        if url then
-            -- Open the URL in the default browser (Linux/FreeBSD with xdg-open)
-            -- For macOS, use `open`. For Windows, use `start`.
-            vim.system({ 'open', url }):wait()
-        else
-            print("No URL found on line!")
+        local req = { url = url }
+        local res = curl.get(req)
+        if res.status == 200 then
+            local res_lines = {}
+            lines = {}
+            for s in res.body:gmatch("[^\r\n]+") do
+                table.insert(res_lines, s)
+            end
+            vim.api.nvim_buf_set_name(results_buf, "RFSee result")
+            vim.api.nvim_buf_set_lines(results_buf, 0, -1, false, res_lines)
+            vim.keymap.del('n', '<CR>', { buffer = results_buf })
         end
-    end, { buffer = buf, noremap = true, silent = true })
+    end, { buffer = results_buf, noremap = true, silent = true })
 end
 
 function M.refresh()
