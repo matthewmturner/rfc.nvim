@@ -47,12 +47,6 @@ pub fn fetch_rfc_index() -> anyhow::Result<String> {
     Ok(rfc_index_content)
 }
 
-pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
-    let rfc_index_content = fetch(RFC_INDEX_URL)?;
-    let rfcs = parse_rfcs_index(rfc_index_content)?;
-    Ok(rfcs)
-}
-
 pub fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
     if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
         let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
