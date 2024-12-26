@@ -361,6 +361,7 @@ impl TfIdf {
         });
     }
 
+    /// Save index to disk
     pub fn save(&self, path: &Path) {
         {
             let index_file = std::fs::File::create(path).unwrap();
@@ -419,4 +420,17 @@ pub fn compute_search_scores(search: String, index: Index) -> Vec<RfcSearchResul
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_rfc_index;
+
+    #[test]
+    fn test_parse_index() {
+        let index_contents = std::fs::read_to_string("../../data/rfc_index.txt").unwrap();
+        let parsed = parse_rfc_index(&index_contents).unwrap();
+
+        assert_eq!(parsed, vec!["0001 Host Software. S. Crocker. April 1969. (Format: TXT, HTML) (Status:\n     UNKNOWN) (DOI: 10.17487/RFC0001) ", "0002 Host software. B. Duvall. April 1969. (Format: TXT, PDF, HTML)\n     (Status: UNKNOWN) (DOI: 10.17487/RFC0002) ", ""]);
+    }
 }
