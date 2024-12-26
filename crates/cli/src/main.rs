@@ -46,7 +46,7 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
                 let index_path = get_index_path(index_path);
                 let file = File::open(index_path)?;
                 let index: Index = simd_json::from_reader(file)?;
-                println!("Opening index file took: {:?}", start.elapsed());
+                println!("Reading index file took: {:?}", start.elapsed());
                 let results = search_index(terms, index);
                 println!("Total search time: {:?}", start.elapsed());
                 println!("Docs: {results:#?}");

@@ -5,7 +5,11 @@ use std::{
     time::Duration,
 };
 
-use crate::{fetch::fetch, threadpool};
+use crate::{
+    fetch::fetch,
+    parse::{parse_rfc, parse_rfc_index, parse_rfcs_index},
+    threadpool,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +37,6 @@ pub type TermScore = i32;
 pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
-const RFC_DELIMITER: &str = "\n\n";
 const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
 const RFC_EDITOR_FILE_TYPE: &str = "txt";
 
@@ -100,30 +103,6 @@ fn fetch_rfc_index() -> anyhow::Result<String> {
     Ok(rfc_index_content)
 }
 
-/// Parse raw `String` contents of RFC index and return `Vec` of `&str` for each item after
-/// splitting on `RFC_DELIMITER`
-fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
-    let found = content.find("0001");
-    match found {
-        Some(idx) => {
-            let raw_rfcs = &content[idx..];
-            let splitted = raw_rfcs.split(RFC_DELIMITER).collect();
-            Ok(splitted)
-        }
-        None => anyhow::bail!("Unable to parse RFC index"),
-    }
-}
-
-/// Parse raw RFC `String` contents into the RFC number and its title
-fn parse_rfc(rfc_content: &str) -> anyhow::Result<(i32, &str)> {
-    if let Some((rfc_num, title)) = rfc_content.split_once(" ") {
-        let parsed_num: i32 = rfc_num.parse()?;
-        Ok((parsed_num, title))
-    } else {
-        anyhow::bail!("Unable to parse RFC number {rfc_content}");
-    }
-}
-
 pub fn fetch_rfcs() -> anyhow::Result<Vec<RfcEntry>> {
     let rfc_index_content = fetch(RFC_INDEX_URL)?;
     let rfcs = parse_rfcs_index(rfc_index_content)?;
@@ -145,38 +124,6 @@ fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
         }
     } else {
         anyhow::bail!("Unable to parse raw RFC")
-    }
-}
-
-pub fn parse_rfcs_index(content: String) -> anyhow::Result<Vec<RfcEntry>> {
-    let found = content.find("0001");
-    match found {
-        Some(idx) => {
-            let mut rfcs = Vec::new();
-            let raw_rfcs = &content[idx..];
-            let splitted = raw_rfcs.split(RFC_DELIMITER);
-            for raw_rfc in splitted {
-                if let Some((rfc_num, title)) = raw_rfc.split_once(" ") {
-                    let parsed_num: i32 = rfc_num.parse()?;
-                    if parsed_num % 1000 == 0 {
-                        println!("Fetching RFC number {parsed_num}");
-                    }
-                    let url = format!("https://www.rfc-editor.org/rfc/rfc{parsed_num}.txt");
-                    let content = match fetch(&url) {
-                        Ok(content) => Some(content),
-                        Err(_) => None,
-                    };
-                    rfcs.push(RfcEntry {
-                        number: parsed_num,
-                        url: url.clone(),
-                        title: title.replace("\n     ", " ").to_string(),
-                        content,
-                    })
-                }
-            }
-            Ok(rfcs)
-        }
-        None => anyhow::bail!("Invalid RFC index conetent"),
     }
 }
 
