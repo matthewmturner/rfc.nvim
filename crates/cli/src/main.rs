@@ -1,7 +1,10 @@
 use std::{fs::File, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use rfsee_tf_idf::{get_index_path, search_index, Index, TfIdf};
+use rfsee_tf_idf::{
+    error::{RFSeeError, RFSeeResult},
+    get_index_path, search_index, Index, TfIdf,
+};
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about)]
@@ -24,7 +27,7 @@ enum Command {
     },
 }
 
-fn handle_command(args: Args) -> anyhow::Result<()> {
+fn handle_command(args: Args) -> RFSeeResult<()> {
     if let Some(command) = args.clone().command {
         match command {
             Command::Index { path } => {
@@ -44,8 +47,10 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
             Command::Search { terms, index_path } => {
                 let start = Instant::now();
                 let index_path = get_index_path(index_path);
-                let file = File::open(index_path)?;
-                let index: Index = simd_json::from_reader(file)?;
+                let file =
+                    File::open(index_path).map_err(|e| RFSeeError::IOError(e.to_string()))?;
+                let index: Index = simd_json::from_reader(file)
+                    .map_err(|e| RFSeeError::ParseError(e.to_string()))?;
                 println!("Reading index file took: {:?}", start.elapsed());
                 let results = search_index(terms, index);
                 println!("Total search time: {:?}", start.elapsed());
@@ -56,7 +61,7 @@ fn handle_command(args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> RFSeeResult<()> {
     let args = Args::parse();
     handle_command(args)?;
     Ok(())
