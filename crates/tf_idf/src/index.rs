@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{
+    error::{RFSeeError, RFSeeResult},
     fetch::{fetch, fetch_rfc, fetch_rfc_index, RFC_EDITOR_URL_BASE},
     parse::{parse_rfc, parse_rfc_index},
     threadpool,
@@ -112,7 +113,7 @@ pub struct TfIdf {
 }
 
 impl TfIdf {
-    pub fn load_rfcs(&mut self) -> anyhow::Result<()> {
+    pub fn load_rfcs(&mut self) -> RFSeeResult<()> {
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
         for raw_rfc in raw_rfcs {
@@ -138,7 +139,7 @@ impl TfIdf {
     }
 
     /// Load the RFCs in parallel using a threadpool
-    pub fn par_load_rfcs(&mut self) -> anyhow::Result<()> {
+    pub fn par_load_rfcs(&mut self) -> RFSeeResult<()> {
         let pool = threadpool::ThreadPool::new(12);
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
@@ -182,10 +183,12 @@ impl TfIdf {
                         self.add_rfc_entry(rfc);
                     }
                 }
-                Err(err) => anyhow::bail!(err),
+                Err(err) => return Err(RFSeeError::RuntimeError(err.to_string())),
             },
             Err(_) => {
-                anyhow::bail!("More than one reference remaining")
+                return Err(RFSeeError::RuntimeError(
+                    "More than one reference remaining".to_string(),
+                ))
             }
         }
 

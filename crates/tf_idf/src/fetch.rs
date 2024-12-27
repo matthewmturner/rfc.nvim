@@ -5,46 +5,61 @@ use std::{
 
 use native_tls::TlsConnector;
 
-use crate::{parse::parse_rfc, RfcEntry};
+use crate::{
+    error::{RFSeeError, RFSeeResult},
+    parse::parse_rfc,
+    RfcEntry,
+};
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
 pub const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
 
-pub fn fetch(url: &str) -> anyhow::Result<String> {
+pub fn fetch(url: &str) -> RFSeeResult<String> {
     let parts: Vec<&str> = url.split("://").collect();
     if parts.len() == 2 {
         let _scheme = parts[0];
         let remaining = parts[1];
         let (domain, path) = match remaining.split_once("/") {
             Some((domain, path)) => (domain, path),
-            None => anyhow::bail!("Unable to parse domain and path"),
+            None => {
+                return Err(RFSeeError::ParseError(
+                    "Unable to parse domain and path".to_string(),
+                ))
+            }
         };
         let path_with_prefix = format!("/{path}");
         let addr = format!("{domain}:443");
 
-        let connector = TlsConnector::new()?;
-        let stream = TcpStream::connect(&addr)?;
-        let mut stream = connector.connect(domain, stream)?;
+        let connector = TlsConnector::new().map_err(|e| RFSeeError::FetchError(e.to_string()))?;
+        let stream =
+            TcpStream::connect(&addr).map_err(|e| RFSeeError::FetchError(e.to_string()))?;
+        let mut stream = connector
+            .connect(domain, stream)
+            .map_err(|e| RFSeeError::FetchError(e.to_string()))?;
         let req = format!(
         "GET {path_with_prefix} HTTP/1.1\r\nHost: {domain}\r\nUser-Agent: rfsee/0.0.1\r\nConnection: close\r\n\r\n"
     );
-        stream.write_all(req.as_bytes())?;
+        stream
+            .write_all(req.as_bytes())
+            .map_err(|e| RFSeeError::IOError(e.to_string()))?;
         let mut buf = String::new();
-        stream.read_to_string(&mut buf)?;
+        stream
+            .read_to_string(&mut buf)
+            .map_err(|e| RFSeeError::IOError(e.to_string()))?;
 
         Ok(buf)
     } else {
-        anyhow::bail!("Invalid url: {url}");
+        Err(RFSeeError::ParseError(format!("Invalid URL: {url}")))
     }
 }
 
 /// Return the raw `String` contents of IETF RFC index
-pub fn fetch_rfc_index() -> anyhow::Result<String> {
+pub fn fetch_rfc_index() -> RFSeeResult<String> {
     let rfc_index_content = fetch(RFC_INDEX_URL)?;
     Ok(rfc_index_content)
 }
 
-pub fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
+pub fn fetch_rfc(raw_rfc: &str) -> RFSeeResult<RfcEntry> {
     if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
         let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
         if let Ok(content) = fetch(&url) {
@@ -55,14 +70,16 @@ pub fn fetch_rfc(raw_rfc: &str) -> anyhow::Result<RfcEntry> {
                 content: Some(content),
             })
         } else {
-            anyhow::bail!("Unable to fetch RFC")
+            Err(RFSeeError::FetchError("Unable to fetch RFC".to_string()))
         }
     } else {
-        anyhow::bail!("Unable to parse raw RFC")
+        Err(RFSeeError::ParseError(
+            "Unable to parse raw RFC".to_string(),
+        ))
     }
 }
 
-fn _fetch_urls(_urls: &[&str]) -> anyhow::Result<Vec<String>> {
+fn _fetch_urls(_urls: &[&str]) -> RFSeeResult<Vec<String>> {
     // Use single connection
     todo!()
 }

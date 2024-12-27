@@ -1,8 +1,12 @@
+use std::num::ParseIntError;
+
+use crate::error::{RFSeeError, RFSeeResult};
+
 const RFC_DELIMITER: &str = "\n\n";
 
 /// Parse raw `String` contents of RFC index and return `Vec` of `&str` for each item after
 /// splitting on `RFC_DELIMITER`
-pub fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
+pub fn parse_rfc_index(content: &str) -> RFSeeResult<Vec<&str>> {
     let found = content.find("0001");
     match found {
         Some(idx) => {
@@ -10,17 +14,23 @@ pub fn parse_rfc_index(content: &str) -> anyhow::Result<Vec<&str>> {
             let splitted = raw_rfcs.split(RFC_DELIMITER).collect();
             Ok(splitted)
         }
-        None => anyhow::bail!("Unable to parse RFC index"),
+        None => Err(RFSeeError::ParseError(
+            "Unable to parse RFC index".to_string(),
+        )),
     }
 }
 
 /// Parse raw RFC `String` contents into the RFC number and its title
-pub fn parse_rfc(rfc_content: &str) -> anyhow::Result<(i32, &str)> {
+pub fn parse_rfc(rfc_content: &str) -> RFSeeResult<(i32, &str)> {
     if let Some((rfc_num, title)) = rfc_content.split_once(" ") {
-        let parsed_num: i32 = rfc_num.parse()?;
+        let parsed_num: i32 = rfc_num
+            .parse()
+            .map_err(|e: ParseIntError| RFSeeError::ParseError(e.to_string()))?;
         Ok((parsed_num, title))
     } else {
-        anyhow::bail!("Unable to parse RFC number {rfc_content}");
+        Err(RFSeeError::ParseError(
+            "Unable to parse RFC number {rfc_content}".to_string(),
+        ))
     }
 }
 
