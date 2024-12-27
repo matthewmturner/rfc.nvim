@@ -12,5 +12,4 @@ keywords = ["tf-idf"]
 regex = "1.11.1"
 simd-json = "0.14.3"
 serde = "1.0.216"
-directories = "5.0.1"
 native-tls = "0.2.12"

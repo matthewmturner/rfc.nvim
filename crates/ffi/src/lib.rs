@@ -66,7 +66,10 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
         return make_error_results();
     }
 
-    let index_path = rfsee_tf_idf::get_index_path(None);
+    let index_path = match rfsee_tf_idf::get_index_path(None) {
+        Ok(p) => p,
+        Err(_) => return make_error_results(),
+    };
     let file = match File::open(index_path) {
         Ok(f) => f,
         Err(_) => {

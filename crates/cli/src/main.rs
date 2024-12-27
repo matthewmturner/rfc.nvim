@@ -40,13 +40,13 @@ fn handle_command(args: Args) -> RFSeeResult<()> {
                 index.finish();
                 println!("Building index took {:?}", building_index_start.elapsed());
                 let saving_start = Instant::now();
-                let index_path = get_index_path(path);
+                let index_path = get_index_path(path)?;
                 index.save(&index_path);
                 println!("Saving index took {:?}", saving_start.elapsed());
             }
             Command::Search { terms, index_path } => {
                 let start = Instant::now();
-                let index_path = get_index_path(index_path);
+                let index_path = get_index_path(index_path)?;
                 let file =
                     File::open(index_path).map_err(|e| RFSeeError::IOError(e.to_string()))?;
                 let index: Index = simd_json::from_reader(file)

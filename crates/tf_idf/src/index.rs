@@ -9,6 +9,7 @@ use crate::{
     error::{RFSeeError, RFSeeResult},
     fetch::{fetch, fetch_rfc, fetch_rfc_index, RFC_EDITOR_URL_BASE},
     parse::{parse_rfc, parse_rfc_index},
+    path::home_dir,
     threadpool,
 };
 use regex::Regex;
@@ -80,19 +81,21 @@ pub struct RfcSearchResult {
     pub title: String,
 }
 
-pub fn get_index_path(custom_path: Option<PathBuf>) -> PathBuf {
+pub fn get_index_path(custom_path: Option<PathBuf>) -> RFSeeResult<PathBuf> {
     if let Some(path) = custom_path {
-        path
-    } else if let Some(project_dirs) =
-        directories::ProjectDirs::from("com", "matthewmturner", "rfsee")
-    {
-        let data_dir = project_dirs.data_dir();
-        if !data_dir.exists() {
-            std::fs::create_dir_all(data_dir).unwrap();
+        Ok(path)
+    } else if let Some(home_dir) = home_dir() {
+        let rfsee_config_dir = home_dir.join(".config/rfsee");
+        if !rfsee_config_dir.exists() {
+            std::fs::create_dir_all(&rfsee_config_dir).unwrap()
         }
-        data_dir.to_path_buf().join(INDEX_FILE_NAME)
+        Ok(rfsee_config_dir.join(INDEX_FILE_NAME))
+    } else if cfg!(unix) {
+        Ok(PathBuf::from(DEFAULT_INDEX_PATH))
     } else {
-        PathBuf::from(DEFAULT_INDEX_PATH)
+        Err(RFSeeError::IOError(
+            "No default location for index on Windows".to_string(),
+        ))
     }
 }
 
