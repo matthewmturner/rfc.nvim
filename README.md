@@ -39,11 +39,10 @@ With Lazy
 ```lua
 {
     'matthewmturner/rfsee',
-    opts = {
-        dependencies = {
-            "nvim-lua/plenary.nvim"
-        },
-    }
+    opts = {},
+    dependencies = {
+        "nvim-lua/plenary.nvim"
+    },
 }
 ```
 
