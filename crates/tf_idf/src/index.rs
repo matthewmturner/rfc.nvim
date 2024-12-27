@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    fetch::{fetch, fetch_rfc_index},
+    fetch::{fetch, fetch_rfc, fetch_rfc_index, RFC_EDITOR_URL_BASE},
     parse::{parse_rfc, parse_rfc_index},
     threadpool,
 };

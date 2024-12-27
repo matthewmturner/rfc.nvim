@@ -5,13 +5,10 @@ use std::{
 
 use native_tls::TlsConnector;
 
-use crate::{
-    parse::{parse_rfc, parse_rfcs_index},
-    RfcEntry,
-};
+use crate::{parse::parse_rfc, RfcEntry};
 
 const RFC_INDEX_URL: &str = "https://www.ietf.org/rfc/rfc-index.txt";
-const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
+pub const RFC_EDITOR_URL_BASE: &str = "https://www.rfc-editor.org/rfc/rfc";
 
 pub fn fetch(url: &str) -> anyhow::Result<String> {
     let parts: Vec<&str> = url.split("://").collect();
