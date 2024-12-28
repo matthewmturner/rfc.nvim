@@ -39,13 +39,11 @@ pub type TermScore = i32;
 pub type RfcDetailsMap = HashMap<RfcNumber, RfcDetails>;
 
 const RFC_EDITOR_FILE_TYPE: &str = "txt";
-
 const WORD_MATCH_REGEX: &str = r"(\w+)";
 /// We have an epsilon value to account for some terms, like "HTTP", being in all RFCs.
 const EPSILON: f32 = 0.0001;
 /// How to split the user provided search
 const SEARCH_TERMS_DELIMITER: &str = " ";
-
 const INDEX_FILE_NAME: &str = "index.json";
 const DEFAULT_INDEX_PATH: &str = "/tmp/index.json";
 

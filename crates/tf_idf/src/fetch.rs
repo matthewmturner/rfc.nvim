@@ -79,11 +79,6 @@ pub fn fetch_rfc(raw_rfc: &str) -> RFSeeResult<RfcEntry> {
     }
 }
 
-fn _fetch_urls(_urls: &[&str]) -> RFSeeResult<Vec<String>> {
-    // Use single connection
-    todo!()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,6 +107,15 @@ mod tests {
         let res = fetch(url).unwrap();
         if let Some(first_line) = res.lines().next() {
             assert_eq!(first_line, "HTTP/1.1 200 OK")
+        }
+    }
+
+    #[test]
+    fn fetch_nonexistent_rfc() {
+        let url = "https://www.rfc-editor.org/rfc/rfc999999999.txt";
+        let res = fetch(url).unwrap();
+        if let Some(first_line) = res.lines().next() {
+            assert_eq!(first_line, "HTTP/1.1 404 Not Found")
         }
     }
 }
