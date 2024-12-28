@@ -15,8 +15,8 @@ pub struct RfcSearchResults {
     error: i32,
 }
 
-/// A private struct to hold both the public results interface and the heap allocated data that
-/// from the results.
+/// A private struct to hold both the public results interface and the heap allocated data for
+/// the results.
 #[allow(dead_code)]
 struct RfcSearchResultsContainer {
     // This is what is returned
@@ -63,29 +63,29 @@ pub extern "C" fn build_index() {
 pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchResults {
     // To convert to `CStr` the pointer must be non-null
     if terms.is_null() {
-        return make_error_results();
+        return make_error_results(1);
     }
 
     let index_path = match rfsee_tf_idf::get_index_path(None) {
         Ok(p) => p,
-        Err(_) => return make_error_results(),
+        Err(_) => return make_error_results(2),
     };
     let file = match File::open(index_path) {
         Ok(f) => f,
         Err(_) => {
-            return make_error_results();
+            return make_error_results(3);
         }
     };
 
     let index: Index = match simd_json::from_reader(file) {
         Ok(i) => i,
-        Err(_) => return make_error_results(),
+        Err(_) => return make_error_results(4),
     };
 
     let c_str = unsafe { CStr::from_ptr(terms) };
     let query = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => return make_error_results(),
+        Err(_) => return make_error_results(5),
     };
 
     let search_results = rfsee_tf_idf::search_index(query.to_string(), index);
@@ -138,12 +138,23 @@ pub unsafe extern "C" fn search_terms(terms: *const c_char) -> *mut RfcSearchRes
     ptr
 }
 
-fn make_error_results() -> *mut RfcSearchResults {
+/// Error types
+///
+/// 1 -> Null terms
+/// 2 -> Unable get index path
+/// 3 -> Unable to open index file
+/// 4 -> Unable to read index
+/// 5 -> Unable to convert search terms to CStr
+///
+/// # Errors
+///
+/// This function will return an error if .
+fn make_error_results(error: i32) -> *mut RfcSearchResults {
     let my_ffi = RfcSearchResultsContainer {
         results: RfcSearchResults {
             len: 0,
             rfcs: std::ptr::null(),
-            error: 1,
+            error,
         },
         rfc_array: Box::new([]),
         cstrings: Vec::new(),

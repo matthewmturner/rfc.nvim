@@ -69,9 +69,9 @@ pub struct RfcDetails {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Index {
-    rfc_details: RfcDetailsMap,
-    /// Map of terms to map of docs with that term and its score
-    term_scores: HashMap<Term, HashMap<RfcNumber, TermScore>>,
+    pub rfc_details: RfcDetailsMap,
+    /// Map of terms to map of RFC numbers with that term and the terms score in that RFC
+    pub term_scores: HashMap<Term, HashMap<RfcNumber, TermScore>>,
 }
 
 #[repr(C)]
@@ -254,6 +254,7 @@ impl TfIdf {
         for (term, docs_with_term) in term_counts {
             let inv_fraction = (total_docs as f32) / ((docs_with_term as f32) + EPSILON);
             let scaled = inv_fraction.log10();
+            println!("Scaled IDF: {scaled:.08}");
             self.idfs.insert(term.clone(), scaled);
         }
 
@@ -261,10 +262,10 @@ impl TfIdf {
         self.processed_rfcs.iter().for_each(|(_doc, rfc)| {
             for (doc_term, freq) in &rfc.term_freqs {
                 if let Some(idf) = self.idfs.get(doc_term) {
-                    // there are often lots of 0s preceding actual score, we can remove those
+                    // there are often lots of 0s preceding actual score, we can remove those and
+                    // convert to integer to save some space
                     let doc_term_score = (freq * idf) * 1_000_000_000.0;
                     let rounded_doc_term_score = doc_term_score.round() as i32;
-                    // let rounded_doc_term_score = (doc_term_score * 100000.0).round() / 100000.0;
                     if let Some(term_scores_per_doc) = self.index.term_scores.get_mut(doc_term) {
                         term_scores_per_doc.insert(rfc.number, rounded_doc_term_score);
                     } else {
@@ -345,7 +346,7 @@ pub fn search_index(search: String, index: Index) -> Vec<RfcSearchResult> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_rfc_index;
+    use super::{parse_rfc_index, RfcEntry, TfIdf};
 
     #[test]
     fn test_parse_index() {
@@ -353,5 +354,46 @@ mod tests {
         let parsed = parse_rfc_index(&index_contents).unwrap();
 
         assert_eq!(parsed, vec!["0001 Host Software. S. Crocker. April 1969. (Format: TXT, HTML) (Status:\n     UNKNOWN) (DOI: 10.17487/RFC0001) ", "0002 Host software. B. Duvall. April 1969. (Format: TXT, PDF, HTML)\n     (Status: UNKNOWN) (DOI: 10.17487/RFC0002) ", ""]);
+    }
+
+    #[test]
+    fn test_index_single_file() {
+        let mut tf_idf = TfIdf::default();
+        let entry = RfcEntry {
+            content: Some("Hello world!".to_string()),
+            title: "Test".to_string(),
+            number: 1,
+            url: "https://www.rfsee.com/1".to_string(),
+        };
+        tf_idf.add_rfc_entry(entry);
+        tf_idf.finish();
+
+        assert_eq!(tf_idf.index.rfc_details.len(), 1);
+        assert_eq!(tf_idf.index.term_scores.len(), 2);
+
+        let hello = tf_idf.index.term_scores.get("Hello");
+        assert!(hello.is_some());
+        let hello_doc_score = hello.unwrap().get(&1);
+        assert!(hello_doc_score.is_some());
+    }
+
+    #[test]
+    fn test_index_single_file_dupe_words() {
+        let mut tf_idf = TfIdf::default();
+        let entry = RfcEntry {
+            content: Some("Hello hello!".to_string()),
+            title: "Test".to_string(),
+            number: 1,
+            url: "https://www.rfsee.com/1".to_string(),
+        };
+        tf_idf.add_rfc_entry(entry);
+        tf_idf.finish();
+
+        assert_eq!(tf_idf.index.rfc_details.len(), 1);
+        // This should be 1 once we update parsing to treat "Hello" and "hello" the same
+        assert_eq!(tf_idf.index.term_scores.len(), 2);
+
+        let hello = tf_idf.index.term_scores.get("Hello");
+        assert!(hello.is_some());
     }
 }
