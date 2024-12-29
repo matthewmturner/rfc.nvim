@@ -7,7 +7,7 @@ use native_tls::TlsConnector;
 
 use crate::{
     error::{RFSeeError, RFSeeResult},
-    parse::parse_rfc,
+    parse::parse_rfc_details,
     RfcEntry,
 };
 
@@ -60,7 +60,7 @@ pub fn fetch_rfc_index() -> RFSeeResult<String> {
 }
 
 pub fn fetch_rfc(raw_rfc: &str) -> RFSeeResult<RfcEntry> {
-    if let Ok((rfc_num, title)) = parse_rfc(raw_rfc) {
+    if let Ok((rfc_num, title)) = parse_rfc_details(raw_rfc) {
         let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
         if let Ok(content) = fetch(&url) {
             Ok(RfcEntry {

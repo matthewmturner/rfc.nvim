@@ -8,7 +8,7 @@ use std::{
 use crate::{
     error::{RFSeeError, RFSeeResult},
     fetch::{fetch, fetch_rfc, fetch_rfc_index, RFC_EDITOR_URL_BASE},
-    parse::{parse_rfc, parse_rfc_index},
+    parse::{parse_rfc_details, parse_rfc_index},
     path::home_dir,
     threadpool,
 };
@@ -118,7 +118,7 @@ impl TfIdf {
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
         for raw_rfc in raw_rfcs {
-            let (rfc_num, title) = parse_rfc(raw_rfc)?;
+            let (rfc_num, title) = parse_rfc_details(raw_rfc)?;
             let url = format!("{RFC_EDITOR_URL_BASE}{rfc_num}.txt");
             let maybe_parsed_rfc = match fetch(&url) {
                 Ok(content) => Some(RfcEntry {
