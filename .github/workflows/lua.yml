@@ -18,6 +18,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build
+    - name: Install Just
+      run: cargo install just
+    - name: Create test index
+      run: just generate-test-index
     - name: Download LuaJIT
       run: sudo apt-get install luajit
     - name: Download LuaRocks

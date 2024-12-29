@@ -20,3 +20,6 @@ build-artifacts:
 publish-dry-run:
     cargo publish -n --manifest-path crates/tf_idf/Cargo.toml
     cargo publish -n --manifest-path crates/cli/Cargo.toml
+
+generate-test-index:
+    cargo r --manifest-path tests/generate-data/Cargo.toml
