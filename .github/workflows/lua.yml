@@ -16,7 +16,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build
     - name: Download LuaJIT
       run: sudo apt-get install luajit
+    - name: Download LuaRocks
+      run: sudo apt-get install luarocks
+    - name: Install LuaFileSystem
+      run: sudo luarocks install luafilesystem
     - name: Test search index
       run: luajit ./tests/search_index.lua

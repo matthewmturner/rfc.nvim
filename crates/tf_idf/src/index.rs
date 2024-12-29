@@ -252,7 +252,6 @@ impl TfIdf {
         for (term, docs_with_term) in term_counts {
             let inv_fraction = (total_docs as f32) / ((docs_with_term as f32) + EPSILON);
             let scaled = inv_fraction.log10();
-            println!("Scaled IDF: {scaled:.08}");
             self.idfs.insert(term.clone(), scaled);
         }
 

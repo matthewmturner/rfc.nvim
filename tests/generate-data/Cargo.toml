@@ -1,0 +1,7 @@
+[package]
+name = "generate-data"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rfsee-tf-idf = { path = "../../crates/tf_idf" }

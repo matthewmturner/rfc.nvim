@@ -48,3 +48,7 @@ crates/ffi/target/**
 crates/cli/target/**
 crates/fetch/target/**
 crates/threadpool/target/**
+
+# Test Data
+# Used in CI
+tests/test_index.json
