@@ -20,12 +20,13 @@ struct RfcSearchResults* search_terms(const char* terms);
 local current_dir = lfs.currentdir();
 
 local dylib = current_dir .. "/target/debug/libffi.so"
+print("Lib path: ", dylib)
 local lib = ffi.load(dylib)
 
 local results = lib.search_terms("Hello")
 
 if results == nil or results.error ~= 0 then
-    error("Error searching")
+    error("Error searching: ", results.error)
 end
 
 print("Results: ", results)
