@@ -18,7 +18,8 @@ struct RfcSearchResults* search_terms(const char* terms);
 ]])
 
 local script_dir = vim.fn.expand("<sfile>:p:h:h")
-local dylib = script_dir .. "/artifacts/libffi.dylib"
+local lib_extension = (jit.os == "OSX") and ".dylib" or ".so"
+local dylib = script_dir .. "/artifacts/libffi" .. lib_extension
 
 local lib = ffi.load(dylib)
 
