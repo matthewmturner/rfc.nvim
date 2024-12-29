@@ -1,5 +1,3 @@
-use std::{path::PathBuf, str::FromStr};
-
 use rfsee_tf_idf::{RfcEntry, TfIdf};
 
 fn main() {
@@ -21,6 +19,6 @@ fn main() {
     tf_idf.add_rfc_entry(rfc2);
 
     tf_idf.finish();
-    let path_buf = PathBuf::from_str("/tmp/index.json").unwrap();
-    tf_idf.save(&path_buf);
+    let path = rfsee_tf_idf::get_index_path(None).unwrap();
+    tf_idf.save(&path);
 }
