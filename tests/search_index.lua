@@ -24,9 +24,17 @@ print("Lib path: ", dylib)
 local lib = ffi.load(dylib)
 
 local results = lib.search_terms("Hello")
+print("Results: ", results.error)
 
-if results == nil or results.error ~= 0 then
-    error("Error searching: ", results.error)
+-- Convert RFC results into lines
+for i = 0, results.len - 1 do
+    local rfc = results.rfcs[i]
+    -- Convert C strings to Lua strings and remove any newlines.
+    local title = ffi.string(rfc.title):gsub("\n", " ")
+    print("Title: ", title)
 end
 
-print("Results: ", results)
+
+-- if results == nil or results.error ~= 0 then
+--     error("Error searching: ", results.error)
+-- end
