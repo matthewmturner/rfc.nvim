@@ -19,7 +19,7 @@ struct RfcSearchResults* search_terms(const char* terms);
 
 local current_dir = lfs.currentdir();
 
-local dylib = current_dir .. "/crates/ffi/target/debug/libffi.dylib"
+local dylib = current_dir .. "/target/debug/libffi.so"
 local lib = ffi.load(dylib)
 
 local results = lib.search_terms("Hello")
