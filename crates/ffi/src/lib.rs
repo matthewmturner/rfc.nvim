@@ -29,9 +29,11 @@ struct RfcSearchResultsContainer {
 
 #[no_mangle]
 pub extern "C" fn build_index() {
+    let path = rfsee_tf_idf::get_index_path(None).unwrap();
     let mut index = rfsee_tf_idf::TfIdf::default();
     index.par_load_rfcs().unwrap();
     index.finish();
+    index.save(&path);
 }
 
 /// Search for the terms in the TF-IDF index and return the results in order with the highest

@@ -65,8 +65,9 @@ function M.refresh()
     window.update_progress_window(buf, "Building RFC index")
     lib.build_index()
     local end_time = os.clock()
-    window.update_progress_window(buf, string.format("Built RFC index in %.2f seconds", end_time - start_time))
-    os.execute("sleep 30")
+    window.update_progress_window(buf, string.format("Built RFC index", end_time - start_time))
+    -- Brief pause before closing
+    os.execute("sleep 1")
     window.close_progress_window(win)
 end
 

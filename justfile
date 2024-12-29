@@ -18,6 +18,8 @@ copy-artifacts:
 copy-artifacts:
     cp target/release/libffi.so artifacts/
 
+generate-artifacts: build-artifacts copy-artifacts
+
 publish-dry-run:
     cargo publish -n --manifest-path crates/tf_idf/Cargo.toml
     cargo publish -n --manifest-path crates/cli/Cargo.toml
