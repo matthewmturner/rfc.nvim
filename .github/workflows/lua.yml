@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  Integration-Test:
 
     runs-on: ubuntu-latest
 
@@ -29,4 +29,4 @@ jobs:
     - name: Install LuaFileSystem
       run: sudo luarocks install luafilesystem
     - name: Test search index
-      run: luajit ./tests/search_index.lua
+      run: just lua-integration-test

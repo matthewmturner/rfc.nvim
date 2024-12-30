@@ -17,3 +17,6 @@ publish-dry-run:
 
 generate-test-index:
     cargo r --manifest-path tests/generate-data/Cargo.toml
+
+lua-integration-test:
+    luajit tests/search_index.lua
