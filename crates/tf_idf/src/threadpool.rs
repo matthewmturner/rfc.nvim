@@ -81,17 +81,42 @@ impl Drop for ThreadPool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
     use super::ThreadPool;
 
     #[test]
     fn test_single_thread_completes_work() {
         let pool = ThreadPool::new(1);
+        let completed = Arc::new(Mutex::new(false));
 
-        let job = || {
-            let _ = 1 + 1;
+        let cloned = Arc::clone(&completed);
+        let job = move || {
+            let mut guard = cloned.lock().unwrap();
+            *guard = true;
         };
 
         pool.execute(job).unwrap();
-        drop(pool);
+        drop(pool); // Let the job finish and bring ref count on `cloned` to 1
+        assert!(Arc::into_inner(completed).unwrap().into_inner().unwrap());
+    }
+
+    #[test]
+    fn test_multiple_threads_completes_work() {
+        let pool = ThreadPool::new(4);
+        let completed = Arc::new(Mutex::new(0));
+
+        let cloned = Arc::clone(&completed);
+        let job = move || {
+            let mut guard = cloned.lock().unwrap();
+            *guard += 1;
+        };
+
+        pool.execute(job.clone()).unwrap();
+        pool.execute(job.clone()).unwrap();
+        pool.execute(job.clone()).unwrap();
+        pool.execute(job).unwrap();
+        drop(pool); // Let the job finish and bring ref count on `cloned` to 1
+        assert_eq!(Arc::into_inner(completed).unwrap().into_inner().unwrap(), 4);
     }
 }

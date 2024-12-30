@@ -28,5 +28,5 @@ jobs:
       run: sudo apt-get install luarocks
     - name: Install LuaFileSystem
       run: sudo luarocks install luafilesystem
-    - name: Test search index
+    - name: Test searching index
       run: just lua-integration-test
