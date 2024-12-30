@@ -3,11 +3,13 @@ use std::{
     thread,
 };
 
+use crate::error::{RFSeeError, RFSeeResult};
+
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct Worker {
     _id: usize,
-    _thread: thread::JoinHandle<()>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
@@ -26,14 +28,14 @@ impl Worker {
         });
         Self {
             _id: id,
-            _thread: thread,
+            thread: Some(thread),
         }
     }
 }
 
 pub struct ThreadPool {
-    _workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    workers: Vec<Worker>,
+    sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
@@ -46,16 +48,50 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
         ThreadPool {
-            _workers: workers,
-            sender,
+            workers,
+            sender: Some(sender),
         }
     }
 
-    pub fn execute<F>(&self, f: F)
+    pub fn execute<F>(&self, f: F) -> RFSeeResult<()>
     where
         F: FnOnce() + Send + 'static,
     {
         let job = Box::new(f);
-        self.sender.send(job).unwrap()
+        match self.sender.as_ref() {
+            Some(sender) => sender
+                .send(job)
+                .map_err(|e| RFSeeError::RuntimeError(e.to_string())),
+            None => Err(RFSeeError::RuntimeError("No sender available".to_string())),
+        }
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+
+        for worker in &mut self.workers {
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ThreadPool;
+
+    #[test]
+    fn test_single_thread_completes_work() {
+        let pool = ThreadPool::new(1);
+
+        let job = || {
+            let _ = 1 + 1;
+        };
+
+        pool.execute(job).unwrap();
+        drop(pool);
     }
 }

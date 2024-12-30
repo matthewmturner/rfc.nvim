@@ -162,7 +162,7 @@ impl TfIdf {
                 };
                 let mut guard = remaining.lock().unwrap();
                 *guard -= 1;
-            })
+            })?
         }
 
         let mut finished = false;
