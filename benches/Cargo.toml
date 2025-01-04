@@ -1,0 +1,14 @@
+[package]
+name = "benches"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.5.1"
+rfsee-tf-idf = { path = "../crates/tf_idf" }
+
+[[bench]]
+name = "build_index"
+harness = false

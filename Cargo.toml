@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "benches",
     "crates/cli",
     "crates/ffi",
     "crates/tf_idf",
