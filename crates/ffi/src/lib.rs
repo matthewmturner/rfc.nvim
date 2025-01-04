@@ -28,10 +28,10 @@ struct RfcSearchResultsContainer {
 }
 
 #[no_mangle]
-pub extern "C" fn build_index() {
+pub extern "C" fn build_index(callback: extern "C" fn(progress: f64)) {
     let path = rfsee_tf_idf::get_index_path(None).unwrap();
     let mut index = rfsee_tf_idf::TfIdf::default();
-    index.par_load_rfcs().unwrap();
+    index.par_load_rfcs(callback).unwrap();
     index.finish();
     index.save(&path);
 }

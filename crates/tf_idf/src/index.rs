@@ -140,10 +140,11 @@ impl TfIdf {
     }
 
     /// Load the RFCs in parallel using a threadpool
-    pub fn par_load_rfcs(&mut self) -> RFSeeResult<()> {
+    pub fn par_load_rfcs(&mut self, callback: extern "C" fn(progress: f64)) -> RFSeeResult<()> {
         let pool = threadpool::ThreadPool::new(12);
         let raw_rfc_index = fetch_rfc_index()?;
         let raw_rfcs = parse_rfc_index(&raw_rfc_index)?;
+        let rfcs_count = raw_rfcs.len();
 
         let parsed_rfcs: Vec<RfcEntry> = Vec::new();
         let parsed_rfcs = Arc::new(Mutex::new(parsed_rfcs));
@@ -159,6 +160,11 @@ impl TfIdf {
                 if let Ok(r) = fetch_rfc(&string) {
                     let mut guard = parsed_rfcs.lock().unwrap();
                     guard.push(r);
+                    let processed = guard.len();
+                    if processed % 100 == 0 {
+                        let progress = (processed as f64 / rfcs_count as f64) * 100_f64;
+                        callback(progress)
+                    }
                 };
                 let mut guard = remaining.lock().unwrap();
                 *guard -= 1;

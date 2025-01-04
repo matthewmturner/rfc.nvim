@@ -2,7 +2,7 @@ local M = {}
 
 function M.create_progress_window()
     local buf = vim.api.nvim_create_buf(false, true)
-    local width = 20
+    local width = 35
     local height = 1
     local row = 0
     local col = vim.o.columns - (width + 1) -- Place it at the top right

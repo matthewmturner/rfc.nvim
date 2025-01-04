@@ -59,11 +59,20 @@ function M.search_terms(terms)
     end, { buffer = results_buf, noremap = true, silent = true })
 end
 
+-- Our Lua callback, cast to a C function pointer
+
 function M.refresh()
     local start_time = os.clock()
     local buf, win = window.create_progress_window()
     window.update_progress_window(buf, "Building RFC index")
-    lib.build_index()
+
+    local function on_progress(pct)
+        local msg = string.format("Downloading RFCs progress: %.1f%%", pct)
+        window.update_progress_window(buf, msg)
+    end
+
+    local on_progress_c = ffi.cast("progress_callback_t", on_progress)
+    lib.build_index(on_progress_c)
     local end_time = os.clock()
     window.update_progress_window(buf, string.format("Built RFC index", end_time - start_time))
     -- Brief pause before closing

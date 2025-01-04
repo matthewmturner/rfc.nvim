@@ -27,6 +27,10 @@ enum Command {
     },
 }
 
+extern "C" fn progress_callback(progress: f64) {
+    println!("Downloading RFCs progress: {progress:.2}%")
+}
+
 fn handle_command(args: Args) -> RFSeeResult<()> {
     if let Some(command) = args.clone().command {
         match command {
@@ -34,7 +38,7 @@ fn handle_command(args: Args) -> RFSeeResult<()> {
                 println!("Indexing RFCs");
                 let start = Instant::now();
                 let mut index = TfIdf::default();
-                index.par_load_rfcs()?;
+                index.par_load_rfcs(progress_callback)?;
                 println!("Loading RFCs took {:?}", start.elapsed());
                 let building_index_start = Instant::now();
                 index.finish();
