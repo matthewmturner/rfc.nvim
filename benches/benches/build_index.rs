@@ -1,11 +1,13 @@
+use std::ffi::c_char;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 
-extern "C" fn cb(_progress: f64) {}
+extern "C" fn cb(_msg: *const c_char) {}
 
 fn build_index() {
     let mut index = rfsee_tf_idf::TfIdf::default();
-    index.par_load_rfcs(cb, cb).unwrap();
-    index.finish();
+    index.par_load_rfcs(cb).unwrap();
+    index.finish(cb);
     let path = std::path::PathBuf::from("/tmp/bench_index.json");
     index.save(&path)
 }

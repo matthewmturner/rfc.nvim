@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ffi::{c_char, CString},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
@@ -142,8 +143,7 @@ impl TfIdf {
     /// Load the RFCs in parallel using a threadpool
     pub fn par_load_rfcs(
         &mut self,
-        fetch_progress_cb: extern "C" fn(progress: f64),
-        parse_progress_cb: extern "C" fn(progress: f64),
+        progress_cb: extern "C" fn(progress: *const c_char),
     ) -> RFSeeResult<()> {
         let pool = threadpool::ThreadPool::new(12);
         let raw_rfc_index = fetch_rfc_index()?;
@@ -164,11 +164,13 @@ impl TfIdf {
                 if let Ok(r) = fetch_rfc(&string) {
                     let mut guard = parsed_rfcs.lock().unwrap();
                     guard.push(r);
-                    let processed = guard.len();
-                    if processed % 100 == 0 {
-                        let progress = (processed as f64 / rfcs_count as f64) * 100_f64;
-                        fetch_progress_cb(progress)
-                    }
+                    // let processed = guard.len();
+                    // if processed % 100 == 0 {
+                    //     let progress = (processed as f64 / rfcs_count as f64) * 100_f64;
+                    //     if let Ok(msg) = CString::new(format!("Fetch progress: {progress:0.0}%")) {
+                    //         progress_cb(msg.as_ptr())
+                    //     }
+                    // }
                 };
                 let mut guard = remaining.lock().unwrap();
                 *guard -= 1;
@@ -179,10 +181,14 @@ impl TfIdf {
         while !finished {
             let remaining = remaining.clone();
             let guard = remaining.lock().unwrap();
+            if let Ok(msg) = CString::new(format!("{} remaining RFCs to fetch", *guard)) {
+                progress_cb(msg.into_raw())
+            }
             if *guard == 0 {
                 finished = true
             } else {
                 drop(guard);
+                // Don't want to go crazy locking the Mutex, so we only check every 5 seconds
                 std::thread::sleep(Duration::from_secs(5));
             }
         }
@@ -194,7 +200,11 @@ impl TfIdf {
                         self.add_rfc_entry(rfc);
                         if i % 100 == 0 {
                             let progress = (i as f64 / rfcs_count as f64) * 100_f64;
-                            parse_progress_cb(progress)
+                            // if let Ok(msg) =
+                            //     CString::new(format!("Parse progress: {progress:0.0}%"))
+                            // {
+                            //     progress_cb(msg.as_ptr())
+                            // }
                         }
                     }
                 }
@@ -248,7 +258,10 @@ impl TfIdf {
 
     /// Take all the processed documents and their term frequencies to compute the final term
     /// scores
-    pub fn finish(&mut self) {
+    pub fn finish(&mut self, progress_cb: extern "C" fn(*const c_char)) {
+        if let Ok(msg) = CString::new("Collecting terms") {
+            progress_cb(msg.as_ptr())
+        }
         // First, we collect all terms and the number of docs they appear in
         let mut term_counts: HashMap<&String, usize> = HashMap::new();
         for indexed_rfc in self.processed_rfcs.values() {
@@ -261,6 +274,9 @@ impl TfIdf {
             }
         }
 
+        if let Ok(msg) = CString::new("Computing inverse document frequencies") {
+            progress_cb(msg.as_ptr())
+        }
         // Then we compute the inverse document frequency for each term
         let total_docs = self.processed_rfcs.len();
         for (term, docs_with_term) in term_counts {
@@ -269,6 +285,9 @@ impl TfIdf {
             self.idfs.insert(term.clone(), scaled);
         }
 
+        if let Ok(msg) = CString::new("Scoring documents") {
+            progress_cb(msg.as_ptr())
+        }
         // Then we compute the score for each term in all documents
         self.processed_rfcs.iter().for_each(|(_doc, rfc)| {
             for (doc_term, freq) in &rfc.term_freqs {
@@ -357,7 +376,11 @@ pub fn search_index(search: String, index: Index) -> Vec<RfcSearchResult> {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::c_char;
+
     use super::{parse_rfc_index, RfcEntry, TfIdf};
+
+    extern "C" fn dummy_cb(_msg: *const c_char) {}
 
     #[test]
     fn test_parse_index() {
@@ -377,7 +400,7 @@ mod tests {
             url: "https://www.rfsee.com/1".to_string(),
         };
         tf_idf.add_rfc_entry(entry);
-        tf_idf.finish();
+        tf_idf.finish(dummy_cb);
 
         assert_eq!(tf_idf.index.rfc_details.len(), 1);
         assert_eq!(tf_idf.index.term_scores.len(), 2);
@@ -398,7 +421,7 @@ mod tests {
             url: "https://www.rfsee.com/1".to_string(),
         };
         tf_idf.add_rfc_entry(entry);
-        tf_idf.finish();
+        tf_idf.finish(dummy_cb);
 
         assert_eq!(tf_idf.index.rfc_details.len(), 1);
         // This should be 1 once we update parsing to treat "Hello" and "hello" the same

@@ -1,4 +1,9 @@
-use std::{fs::File, path::PathBuf, time::Instant};
+use std::{
+    ffi::{c_char, CStr},
+    fs::File,
+    path::PathBuf,
+    time::Instant,
+};
 
 use clap::{Parser, Subcommand};
 use rfsee_tf_idf::{
@@ -27,12 +32,15 @@ enum Command {
     },
 }
 
-extern "C" fn fetch_progress_cb(progress: f64) {
-    println!("Fetching RFCs progress: {progress:.2}%")
-}
+extern "C" fn print_c_char(ptr: *const c_char) {
+    if ptr.is_null() {
+        return;
+    }
 
-extern "C" fn parse_progress_cb(progress: f64) {
-    println!("Parsing RFCs progress: {progress:.2}%")
+    let msg = unsafe { CStr::from_ptr(ptr) };
+    if let Ok(msg) = msg.to_str() {
+        println!("{msg}")
+    }
 }
 
 fn handle_command(args: Args) -> RFSeeResult<()> {
@@ -42,13 +50,14 @@ fn handle_command(args: Args) -> RFSeeResult<()> {
                 println!("Indexing RFCs");
                 let start = Instant::now();
                 let mut index = TfIdf::default();
-                index.par_load_rfcs(fetch_progress_cb, parse_progress_cb)?;
+                index.par_load_rfcs(print_c_char)?;
                 println!("Loading RFCs took {:?}", start.elapsed());
                 let building_index_start = Instant::now();
-                index.finish();
+                index.finish(print_c_char);
                 println!("Building index took {:?}", building_index_start.elapsed());
                 let saving_start = Instant::now();
                 let index_path = get_index_path(path)?;
+                println!("Saving index");
                 index.save(&index_path);
                 println!("Saving index took {:?}", saving_start.elapsed());
             }

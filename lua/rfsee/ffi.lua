@@ -2,7 +2,7 @@ local ffi = require("ffi")
 
 ffi.cdef([[
 typedef void (*progress_callback_t)(double progress);
-void build_index(progress_callback_t fetch_cb, progress_callback_t parse_cb);
+void build_index(progress_callback_t progress_cb);
 
 struct RfcSearchResult {
     const char* url;

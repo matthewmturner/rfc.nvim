@@ -1,4 +1,8 @@
+use std::ffi::c_char;
+
 use rfsee_tf_idf::{RfcEntry, TfIdf};
+
+extern "C" fn dummy_cb(_msg: *const c_char) {}
 
 fn main() {
     let mut tf_idf = TfIdf::default();
@@ -18,7 +22,7 @@ fn main() {
     tf_idf.add_rfc_entry(rfc1);
     tf_idf.add_rfc_entry(rfc2);
 
-    tf_idf.finish();
+    tf_idf.finish(dummy_cb);
     let path = rfsee_tf_idf::get_index_path(None).unwrap();
     tf_idf.save(&path);
 }
