@@ -1,8 +1,9 @@
 local ffi = require("ffi")
 
 ffi.cdef([[
-typedef void (*progress_callback_t)(double progress);
-void build_index(progress_callback_t fetch_cb, progress_callback_t parse_cb);
+typedef void (*progress_callback_t)(const char* msg);
+void build_index(progress_callback_t progress_cb);
+void test_print(progress_callback_t progress_cb);
 
 struct RfcSearchResult {
     const char* url;

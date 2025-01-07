@@ -66,21 +66,14 @@ function M.refresh()
     local buf, win = window.create_progress_window()
     window.update_progress_window(buf, "Building RFC index")
 
-    local function fetch_progress_cb(pct)
-        local msg = string.format("Downloading RFCs progress: %.1f%%", pct)
+    local function progress_cb(ptr)
+        local msg = ffi.string(ptr)
         window.update_progress_window(buf, msg)
     end
 
+    local progress_cb_c = ffi.cast("progress_callback_t", progress_cb)
 
-    local function parse_progress_cb(pct)
-        local msg = string.format("Parsing RFCs progress: %.1f%%", pct)
-        window.update_progress_window(buf, msg)
-    end
-
-    local fetch_progress_cb_c = ffi.cast("progress_callback_t", fetch_progress_cb)
-    local parse_progress_cb_c = ffi.cast("progress_callback_t", parse_progress_cb)
-
-    lib.build_index(fetch_progress_cb_c, parse_progress_cb_c)
+    lib.build_index(progress_cb_c)
     local end_time = os.clock()
     window.update_progress_window(buf, string.format("Built RFC index", end_time - start_time))
     -- Brief pause before closing

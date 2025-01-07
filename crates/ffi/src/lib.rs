@@ -28,16 +28,14 @@ struct RfcSearchResultsContainer {
 }
 
 #[no_mangle]
-pub extern "C" fn build_index(
-    fetch_progress_cb: extern "C" fn(progress: f64),
-    parse_progress_cb: extern "C" fn(progress: f64),
-) {
+pub extern "C" fn build_index(progress_cb: extern "C" fn(msg: *const c_char)) {
     let path = rfsee_tf_idf::get_index_path(None).unwrap();
     let mut index = rfsee_tf_idf::TfIdf::default();
-    index
-        .par_load_rfcs(fetch_progress_cb, parse_progress_cb)
-        .unwrap();
-    index.finish();
+    index.par_load_rfcs(progress_cb).unwrap();
+    index.finish(progress_cb);
+    if let Ok(cstr) = CString::new("Saving index to disk") {
+        progress_cb(cstr.as_ptr())
+    }
     index.save(&path);
 }
 
