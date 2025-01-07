@@ -66,54 +66,13 @@ function M.refresh()
     local buf, win = window.create_progress_window()
     window.update_progress_window(buf, "Building RFC index")
 
-    -- local function progress_cb(ptr)
-    --     -- local msg = ffi.string(ptr)
-    --     -- -- local msg = string.format("Downloading RFCs progress: %.1f%%", pct)
-    --     -- window.update_progress_window(buf, msg)
-    --
-    --     local ok, err = xpcall(function()
-    --         print("Getting string")
-    --         io.stdout:flush()
-    --         local msg = ffi.string(ptr) -- May throw if `ptr` is invalid
-    --         print("Got string")
-    --         io.stdout:flush()
-    --         window.update_progress_window(buf, msg)
-    --     end, debug.traceback)
-    --     print("Ok: ", ok)
-    --     io.stdout:flush()
-    --     if not ok then
-    --         -- Log the error, but don't let it unwind into Rust
-    --         print("Error in progress_cb:", err)
-    --         vim.cmd("redraw")
-    --     end
-    -- end
-
-    local function real_progress_cb(ptr)
-        print("Inside real_progress_cb, about to ffi.string(ptr)")
-        io.stdout:flush()
-
-        local msg = ffi.string(ptr) -- If this fails, it won't kill the process if wrapped by pcall
-        print("Successfully got msg:", msg)
-        io.stdout:flush()
-
+    local function progress_cb(ptr)
+        local msg = ffi.string(ptr)
         window.update_progress_window(buf, msg)
     end
 
-    local function safe_progress_cb(ptr)
-        local ok, err = xpcall(function()
-            real_progress_cb(ptr)
-        end, debug.traceback)
+    local progress_cb_c = ffi.cast("progress_callback_t", progress_cb)
 
-        if not ok then
-            print("Lua callback error:", err)
-            io.stdout:flush()
-            -- DO NOT re-throw the error; otherwise it unwinds back into Rust
-        end
-    end
-
-    local progress_cb_c = ffi.cast("progress_callback_t", safe_progress_cb)
-
-    -- M.progress_cb_c = ffi.cast("progress_callback_t", progress_cb)
     lib.build_index(progress_cb_c)
     local end_time = os.clock()
     window.update_progress_window(buf, string.format("Built RFC index", end_time - start_time))

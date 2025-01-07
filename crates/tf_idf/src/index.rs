@@ -164,13 +164,6 @@ impl TfIdf {
                 if let Ok(r) = fetch_rfc(&string) {
                     let mut guard = parsed_rfcs.lock().unwrap();
                     guard.push(r);
-                    // let processed = guard.len();
-                    // if processed % 100 == 0 {
-                    //     let progress = (processed as f64 / rfcs_count as f64) * 100_f64;
-                    //     if let Ok(msg) = CString::new(format!("Fetch progress: {progress:0.0}%")) {
-                    //         progress_cb(msg.as_ptr())
-                    //     }
-                    // }
                 };
                 let mut guard = remaining.lock().unwrap();
                 *guard -= 1;
@@ -181,8 +174,10 @@ impl TfIdf {
         while !finished {
             let remaining = remaining.clone();
             let guard = remaining.lock().unwrap();
+            // Need to log here, and not in the thread pool because we cant have different threads
+            // call the callback
             if let Ok(msg) = CString::new(format!("{} remaining RFCs to fetch", *guard)) {
-                progress_cb(msg.into_raw())
+                progress_cb(msg.as_ptr())
             }
             if *guard == 0 {
                 finished = true
@@ -200,11 +195,11 @@ impl TfIdf {
                         self.add_rfc_entry(rfc);
                         if i % 100 == 0 {
                             let progress = (i as f64 / rfcs_count as f64) * 100_f64;
-                            // if let Ok(msg) =
-                            //     CString::new(format!("Parse progress: {progress:0.0}%"))
-                            // {
-                            //     progress_cb(msg.as_ptr())
-                            // }
+                            if let Ok(msg) =
+                                CString::new(format!("Parse progress: {progress:0.0}%"))
+                            {
+                                progress_cb(msg.as_ptr())
+                            }
                         }
                     }
                 }
