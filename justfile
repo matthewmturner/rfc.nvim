@@ -20,3 +20,12 @@ generate-test-index:
 
 lua-integration-test:
     luajit tests/search_index.lua
+
+build:
+    cargo build --release
+
+build-dev:
+    cargo build
+
+time-build-index:
+    time cargo r --release --package rfsee -- index
